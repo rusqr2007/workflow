@@ -350,7 +350,6 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
               <button class="primary" id="applyBtn" type="button">Рассчитать</button>
               <button class="ghost" id="fileBtn" type="button">Загрузить файл</button>
               <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
-              <button class="ghost" id="sampleBtn" type="button">Демо-данные</button>
               <span id="resetBox"></span>
               <label class="eyebrow" style="margin-left:auto">Валюта
                 <select id="curSel" class="ghost"><option>₸</option><option>₽</option><option>$</option><option>€</option></select>
@@ -546,42 +545,6 @@ function mulberry32(a){
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
-}
-function sampleText(){
-  const rnd = mulberry32(20261109);
-  const WF = [0.82, 0.78, 0.85, 0.92, 1.12, 1.5, 1.38];
-  const stores = [
-    { n: 'Магазин 1', base: 250, t: 0.02, c: 0.00, e: [['Айгерим К.', 1.14], ['Дана М.', 1.04], ['Руслан Т.', 1.0], ['Алия С.', 0.94], ['Нурлан Б.', 0.88]] },
-    { n: 'Магазин 2', base: 215, t: 0.08, c: 0.08, e: [['Мария Л.', 1.1], ['Санжар О.', 1.0], ['Камила Е.', 0.97], ['Тимур Ж.', 0.92], ['Ольга Р.', 0.9]] },
-    { n: 'Магазин 3', base: 190, t: 0.16, c: 0.16, e: [['Данияр А.', 1.05], ['Жанна П.', 0.98], ['Арман Х.', 0.9], ['Лейла Г.', 0.85], ['Виктор Н.', 0.7]] }
-  ];
-  const out = [TEMPLATE_HEADER];
-  for (let d = 0; d < 28; d++) {
-    const date = addDays('2026-10-12', d), wd = d % 7;
-    stores.forEach((st, si) => {
-      let work = st.e.filter((e, ei) => (d + ei * 2 + si) % 7 < 5);
-      if (si === 2 && d === 24) work = [st.e[0]];
-      if (si === 2 && d >= 18 && work.indexOf(st.e[1]) < 0) work.push(st.e[1]);
-      if (!work.length) work = [st.e[0]];
-      const T = Math.round(st.base * WF[wd] * (0.88 + 0.24 * rnd()));
-      const share = Math.floor(T / work.length);
-      work.forEach((e, k) => {
-        const traffic = share + (k === 0 ? T - share * work.length : 0);
-        const convLY = 0.085 * e[1] * (0.9 + 0.2 * rnd());
-        const conv = convLY * (1 - st.c);
-        const trafficLY = Math.round(traffic / (1 - st.t));
-        const checks = Math.round(traffic * conv * (0.8 + 0.4 * rnd()));
-        const checksLY = Math.round(trafficLY * convLY * (0.8 + 0.4 * rnd()));
-        const units = Math.round(checks * (1.75 + 0.45 * rnd()));
-        const unitsLY = Math.round(checksLY * (1.8 + 0.4 * rnd()));
-        const rev = Math.round(units * 11000 * 1.03 * (0.92 + 0.16 * rnd()) / 100) * 100;
-        const revLY = Math.round(unitsLY * 11000 * (0.92 + 0.16 * rnd()) / 100) * 100;
-        const plan = Math.round(revLY * 1.05 / 100) * 100;
-        out.push([date, st.n, e[0], rev, checks, units, traffic, plan, revLY, checksLY, unitsLY, trafficLY].join('\t'));
-      });
-    });
-  }
-  return out.join('\n');
 }
 </script>
 <script>
@@ -1384,6 +1347,11 @@ function loadText(text, sample){
   renderFilters(); renderAll();
   return true;
 }
+function startFresh(){
+  emptyState(); persist();
+  $('#dataInput').value = rowsToText();
+  renderFilters(); renderAll();
+}
 function startEmpty(){
   emptyState(); persist();
   $('#dataInput').value = rowsToText();
@@ -1621,7 +1589,6 @@ function bind(){
   }
   $('#fFrom').addEventListener('change', dates); $('#fTo').addEventListener('change', dates);
   $('#applyBtn').addEventListener('click', () => { if (loadText($('#dataInput').value, false)) setView('dashboard'); });
-  $('#sampleBtn').addEventListener('click', () => { if (loadText(sampleText(), true)) setView('dashboard'); });
   $('#fileBtn').addEventListener('click', () => $('#fileInput').click());
   $('#fileInput').addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); e.target.value = ''; });
   const ta = $('#dataInput');
@@ -1875,14 +1842,17 @@ function onRemote(p){
   if (m) {
     if (p.eventType === 'DELETE' ? m.del : (!m.del && Object.keys(m.v).every(k => JSON.stringify(m.v[k]) === JSON.stringify(row[k]) || String(m.v[k]) === String(row[k])))) return;
   }
-  schedulePull(800);
+  schedulePull(250);
 }
 function subscribeCloud(){
   let first = true;
   CLOUD.db.channel('workflow-sync').on('postgres_changes', { event: '*', schema: 'public' }, onRemote).subscribe(status => {
+    CLOUD.rt = status === 'SUBSCRIBED';
     if (status === 'SUBSCRIBED') { if (!first) schedulePull(0); first = false; if (!CLOUD.dirty && !CLOUD.busy) setSync('ok'); }
     else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('error', 'Нет связи с Supabase Realtime, пробую переподключиться…');
   });
+  // страховка: если realtime-канал молчит, подтягиваем изменения опросом (без перерисовки, если ничего не изменилось)
+  setInterval(() => { if (!document.hidden) schedulePull(0); }, 8000);
   document.addEventListener('pointerdown', () => { CLOUD.down = true; }, true);
   ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { CLOUD.down = false; schedulePull(300); }, true));
   document.addEventListener('focusout', () => schedulePull(500));
@@ -1904,15 +1874,15 @@ function subscribeCloud(){
     CLOUD.on = true; setSync('connecting');
     try {
       const d = await pullData();
-      if (!d.stores.length && !d.sales.length && !d.settings.length) {   // база пустая: кладём демо-данные
+      try { ['wf.model', 'wf.data', 'wf.sample'].forEach(k => localStorage.removeItem(k)); } catch (e) {}   // старые локальные данные
+      if (!d.stores.length && !d.sales.length && !d.settings.length) {   // база пустая: чистый старт
         CLOUD.snap = emptyTables();
-        loadText(sampleText(), true);
+        startFresh();
       } else {
         applyState(stateFromData(d));
         CLOUD.snap = buildTables();
-        initPeriod();
-        $('#dataInput').value = rowsToText();
-        renderFilters(); renderAll();
+        if (S.isSample) startFresh();   // в базе лежат демо-данные: стираем их (удаление уйдёт в базу)
+        else { initPeriod(); $('#dataInput').value = rowsToText(); renderFilters(); renderAll(); }
       }
       subscribeCloud();
       if (!CLOUD.dirty) setSync('ok');
@@ -1924,13 +1894,13 @@ function subscribeCloud(){
     }
   } else setSync('off');
 
-  if (restore()) {
+  if (restore() && !S.isSample) {
     initPeriod();
     $('#dataInput').value = rowsToText();
     renderFilters(); renderAll();
   } else {
     const old = kv.get('wf.data');
-    if (!(old && kv.get('wf.sample') === '0' && loadText(old, false))) loadText(sampleText(), true);
+    if (!(old && kv.get('wf.sample') === '0' && loadText(old, false))) startFresh();
   }
 })();
 </script>

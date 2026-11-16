@@ -259,6 +259,13 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
 @media (prefers-reduced-motion: reduce){
   *{animation:none!important;transition:none!important}
 }
+/* sync status */
+.sync{display:flex;align-items:flex-start;font-size:12px;line-height:1.4}
+.sync i{flex:none;width:7px;height:7px;margin:6px 7px 0 0;border-radius:50%;background:var(--muted)}
+.sync.ok i{background:var(--good)}
+.sync.saving i,.sync.connecting i{background:var(--warn)}
+.sync.error i{background:var(--bad)}
+.sync.error{color:var(--bad)}
 </style>
 <div class="app" id="app">
   <aside class="rail">
@@ -275,6 +282,7 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
     </nav>
     <div class="rail-foot">
       <span id="railStat"></span>
+      <span class="sync off" id="syncStat"></span>
       <span class="note" id="railNote"></span>
       <button class="ghost" id="themeBtn" type="button">Сменить тему</button>
     </div>
@@ -369,6 +377,7 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
     </section>
   </main>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 /* ENGINE: parsing, dates, aggregation, sample data. No DOM here. */
 const DAY = 864e5;
@@ -935,6 +944,7 @@ function deleteRow(i){ S.rows.splice(i, 1); syncMeta(); }
 
 /* ---- persistence ---- */
 function persist(){
+  if (CLOUD.on) { scheduleFlush(); return; }
   try {
     const o = { v: 2, sample: S.isSample, has: S.meta.has, stores: S.stores, roster: S.roster, shifts: S.shifts, minStaff: S.minStaff,
       rows: S.rows.map(r => [r.d, r.store, r.emp, r.rev, r.checks, r.units, r.traffic, r.plan, r.lyRev, r.lyChecks, r.lyUnits, r.lyTraffic]) };
@@ -1644,13 +1654,276 @@ function bind(){
   });
 }
 
+/* ================= SUPABASE: хранение и синхронизация в реальном времени =================
+   1) В Supabase выполните supabase_schema.sql (SQL Editor).
+   2) Project Settings → API: скопируйте Project URL и anon/publishable key сюда.
+   Пока значения не заполнены, сайт работает как раньше (данные в браузере). */
+const SUPABASE_URL = 'https://ВАШ-ПРОЕКТ.supabase.co';
+const SUPABASE_KEY = 'ВАШ-ANON-KEY';
+
+const CLOUD = {
+  on: false, db: null, snap: null, ids: { stores: new Map(), employees: new Map(), shifts: new Map() },
+  busy: false, dirty: false, again: false, down: false, fails: 0,
+  flushT: 0, pullT: 0, retryT: 0, mine: new Map()
+};
+const CT = ['stores', 'employees', 'sales', 'shifts', 'settings'];
+const K2 = (a, b) => a + '\u0001' + b;
+const K3 = (a, b, c) => a + '\u0001' + b + '\u0001' + c;
+
+function cloudConfigured(){
+  return !!(window.supabase && window.supabase.createClient) && !/ВАШ/.test(SUPABASE_URL + SUPABASE_KEY) &&
+    /^https:\/\/.+\..+/.test(SUPABASE_URL) && SUPABASE_KEY.length > 20;
+}
+function uid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function setSync(state, msg){
+  const el = $('#syncStat'); if (!el) return;
+  const T = { off: 'Локально: Supabase не подключён', connecting: 'Подключаюсь к Supabase…', ok: 'Supabase: всё сохранено', saving: 'Сохраняю…', error: msg || 'Ошибка синхронизации' };
+  el.className = 'sync ' + state;
+  el.innerHTML = '<i></i><span>' + esc(T[state]) + '</span>';
+}
+
+/* ---- модель приложения <-> строки таблиц ---- */
+function emptyTables(){ const T = {}; CT.forEach(t => { T[t] = new Map(); }); return T; }
+function rowToDb(r){
+  return { id: r.id, day: r.d, store: r.store, emp: r.emp, rev: r.rev, checks: r.checks, units: r.units, traffic: r.traffic, plan: r.plan,
+    ly_rev: r.lyRev, ly_checks: r.lyChecks, ly_units: r.lyUnits, ly_traffic: r.lyTraffic };
+}
+function dbSig(o){ return [o.day, o.store, o.emp, o.rev, o.checks, o.units, o.traffic, o.plan, o.ly_rev, o.ly_checks, o.ly_units, o.ly_traffic].join('|'); }
+
+function stateFromS(){ return { stores: S.stores, roster: S.roster, shifts: S.shifts, rows: S.rows, minStaff: S.minStaff, sample: S.isSample, has: S.meta.has }; }
+
+function stateFromData(d){
+  const ids = { stores: new Map(), employees: new Map(), shifts: new Map() };
+  const byPos = (a, b) => (a.position - b.position) || String(a.name).localeCompare(b.name, 'ru');
+  const names = d.stores.slice().sort(byPos).map(x => { ids.stores.set(x.name, x.id); return x.name; });
+  const roster = {}; names.forEach(n => { roster[n] = []; });
+  d.employees.slice().sort(byPos).forEach(x => { (roster[x.store] = roster[x.store] || []).push(x.name); ids.employees.set(K2(x.store, x.name), x.id); });
+  const shifts = {};
+  d.shifts.forEach(x => {
+    const a = shifts[x.store] = shifts[x.store] || {}, b = a[x.emp] = a[x.emp] || {};
+    b[x.day] = x.type; ids.shifts.set(K3(x.store, x.emp, x.day), x.id);
+  });
+  const rows = d.sales.map(x => ({ id: x.id, d: x.day, store: x.store, emp: x.emp, rev: +x.rev, checks: +x.checks, units: +x.units, traffic: +x.traffic,
+    plan: +x.plan, lyRev: +x.ly_rev, lyChecks: +x.ly_checks, lyUnits: +x.ly_units, lyTraffic: +x.ly_traffic }));
+  rows.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
+  const cfg = {}; d.settings.forEach(x => { cfg[x.key] = x.value; });
+  return { ids: ids, stores: names, roster: roster, shifts: shifts, rows: rows,
+    minStaff: cfg.minStaff != null ? cfg.minStaff : 2, sample: !!cfg.sample, has: Object.assign({ date: true, rev: true }, cfg.has || {}) };
+}
+function applyState(st){
+  CLOUD.ids = st.ids;
+  S.stores = st.stores; S.roster = st.roster; S.shifts = st.shifts; S.rows = st.rows; S.minStaff = st.minStaff; S.isSample = st.sample;
+  if (!S.meta) S.meta = { has: {}, mapped: [], ignored: [], skipped: { date: 0, rev: 0 }, warn: { blank: 0, neg: 0, convOver: 0 }, dup: 0, total: 0, stores: [], emps: [], min: todayIso(), max: todayIso() };
+  S.meta.has = st.has;
+  syncMeta();
+}
+
+/* st -> набор строк таблиц. ids: постоянные id для магазинов/сотрудников/смен (создаются при первом появлении) */
+function tablesFrom(st, ids, pool){
+  const T = emptyTables();
+  const idOf = (m, k) => { let v = m.get(k); if (!v) { v = uid(); m.set(k, v); } return v; };
+  st.stores.forEach((n, i) => T.stores.set(n, { id: idOf(ids.stores, n), name: n, position: i }));
+  Object.keys(st.roster).forEach(s => st.roster[s].forEach((e, i) => {
+    const k = K2(s, e); T.employees.set(k, { id: idOf(ids.employees, k), store: s, name: e, position: i });
+  }));
+  Object.keys(st.shifts).forEach(s => { const a = st.shifts[s];
+    Object.keys(a).forEach(e => { const b = a[e];
+      Object.keys(b).forEach(day => {
+        if (!b[day]) return;
+        const k = K3(s, e, day); T.shifts.set(k, { id: idOf(ids.shifts, k), store: s, emp: e, day: day, type: b[day] });
+      });
+    });
+  });
+  const used = new Set(); st.rows.forEach(r => { if (r.id) used.add(r.id); });
+  st.rows.forEach(r => {
+    if (!r.id) {   // новая строка: если такая же уже есть в базе, берём её id (повторный импорт не пересоздаёт всё)
+      const a = pool && pool.get(dbSig(rowToDb(r))); let id = null;
+      while (a && a.length) { const c = a.shift(); if (!used.has(c)) { id = c; break; } }
+      r.id = id || uid(); used.add(r.id);
+    }
+    T.sales.set(r.id, rowToDb(r));
+  });
+  const has = {}; Object.keys(st.has || {}).sort().forEach(k => { if (st.has[k]) has[k] = true; });
+  T.settings.set('has', { key: 'has', value: has });
+  T.settings.set('minStaff', { key: 'minStaff', value: st.minStaff });
+  T.settings.set('sample', { key: 'sample', value: !!st.sample });
+  ['stores', 'employees', 'shifts'].forEach(t => ids[t].forEach((v, k) => { if (!T[t].has(k)) ids[t].delete(k); }));
+  return T;
+}
+function buildTables(){
+  let pool = null;
+  if (CLOUD.snap) { pool = new Map(); CLOUD.snap.sales.forEach(o => { const k = dbSig(o); if (!pool.has(k)) pool.set(k, []); pool.get(k).push(o.id); }); }
+  return tablesFrom(stateFromS(), CLOUD.ids, pool);
+}
+function sameTables(a, b){
+  for (const t of CT) {
+    const x = a[t], y = b[t];
+    if (x.size !== y.size) return false;
+    for (const [k, v] of x) { const w = y.get(k); if (!w || JSON.stringify(v) !== JSON.stringify(w)) return false; }
+  }
+  return true;
+}
+function diffTables(cur, old){
+  const up = {}, del = {};
+  CT.forEach(t => {
+    up[t] = []; del[t] = [];
+    cur[t].forEach((v, k) => { const o = old[t].get(k); if (!o || JSON.stringify(o) !== JSON.stringify(v)) up[t].push(v); });
+    old[t].forEach((v, k) => { if (!cur[t].has(k) && t !== 'settings') del[t].push(v); });
+  });
+  return { up: up, del: del };
+}
+
+/* ---- запись в базу (с задержкой, только изменения) ---- */
+function scheduleFlush(){
+  CLOUD.dirty = true;
+  clearTimeout(CLOUD.flushT);
+  CLOUD.flushT = setTimeout(flushCloud, 500);
+  setSync('saving');
+}
+async function runChunks(arr, n, fn){ for (let i = 0; i < arr.length; i += n) await fn(arr.slice(i, i + n)); }
+async function flushCloud(){
+  if (!CLOUD.on) return;
+  if (CLOUD.busy) { CLOUD.again = true; return; }
+  CLOUD.busy = true; CLOUD.dirty = false; CLOUD.again = false; clearTimeout(CLOUD.retryT);
+  try {
+    const cur = buildTables(), df = diffTables(cur, CLOUD.snap), db = CLOUD.db;
+    // запоминаем, что именно пишем: эхо своих же изменений из Realtime не перезагружаем,
+    // а чужое изменение той же строки (другие значения) обработаем
+    const mine = [];
+    CT.forEach(t => {
+      df.up[t].forEach(o => mine.push([t === 'settings' ? 'set:' + o.key : t + ':' + o.id, { v: t === 'settings' ? { value: o.value } : o }]));
+      df.del[t].forEach(o => mine.push([t + ':' + o.id, { del: true }]));
+    });
+    mine.forEach(m => CLOUD.mine.set(m[0], m[1]));
+    setTimeout(() => mine.forEach(m => { if (CLOUD.mine.get(m[0]) === m[1]) CLOUD.mine.delete(m[0]); }), 10000);
+    for (const t of ['shifts', 'sales', 'employees', 'stores']) {
+      await runChunks(df.del[t].map(o => o.id), 100, async ids => {
+        const r = await db.from(t).delete().in('id', ids); if (r.error) throw r.error;
+      });
+    }
+    for (const t of ['stores', 'employees', 'sales', 'shifts']) {
+      await runChunks(df.up[t], 500, async rows => {
+        const r = await db.from(t).upsert(rows, { onConflict: 'id' }); if (r.error) throw r.error;
+      });
+    }
+    if (df.up.settings.length) { const r = await db.from('settings').upsert(df.up.settings, { onConflict: 'key' }); if (r.error) throw r.error; }
+    CLOUD.snap = cur; CLOUD.fails = 0;
+    if (!CLOUD.dirty) setSync('ok');
+  } catch (e) {
+    console.error('Supabase save error', e);
+    CLOUD.dirty = true; CLOUD.fails++;
+    setSync('error', 'Не сохранилось: ' + (e && e.message ? e.message : e) + (CLOUD.fails < 4 ? ' · повторяю…' : ''));
+    if (CLOUD.fails < 4) CLOUD.retryT = setTimeout(flushCloud, 3000 * CLOUD.fails);
+  } finally {
+    CLOUD.busy = false;
+    if (CLOUD.again) { CLOUD.again = false; scheduleFlush(); }
+  }
+}
+
+/* ---- чтение из базы ---- */
+async function fetchAll(table, orders){
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    let q = CLOUD.db.from(table).select('*');
+    orders.forEach(o => { q = q.order(o); });
+    const r = await q.range(from, from + 999);
+    if (r.error) throw r.error;
+    out.push.apply(out, r.data);
+    if (r.data.length < 1000) break;
+  }
+  return out;
+}
+async function pullData(){
+  const r = await Promise.all([fetchAll('stores', ['id']), fetchAll('employees', ['id']), fetchAll('sales', ['day', 'id']), fetchAll('shifts', ['id']), fetchAll('settings', ['key'])]);
+  return { stores: r[0], employees: r[1], sales: r[2], shifts: r[3], settings: r[4] };
+}
+function typingNow(){
+  const a = document.activeElement; if (!a || a === document.body) return false;
+  if (a.closest && a.closest('#filters')) return false;
+  return a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(checkbox|radio|button|file|range|submit)$/.test(a.type));
+}
+function schedulePull(ms){ if (CLOUD.pullT) return; CLOUD.pullT = setTimeout(runPull, ms); }
+async function runPull(){
+  CLOUD.pullT = 0;
+  if (!CLOUD.on) return;
+  if (CLOUD.busy || CLOUD.dirty || CLOUD.down || typingNow()) { schedulePull(700); return; }
+  try {
+    const d = await pullData();
+    if (CLOUD.busy || CLOUD.dirty) { schedulePull(300); return; }   // пока грузили, пользователь что-то изменил
+    const st = stateFromData(d), remote = tablesFrom(st, st.ids, null);
+    if (CLOUD.snap && sameTables(remote, CLOUD.snap)) return;       // ничего нового
+    const hadRows = S.rows.length > 0;
+    applyState(st);
+    CLOUD.snap = buildTables();
+    if (!hadRows) initPeriod();
+    const ta = $('#dataInput'); if (ta && !S.textEdited && document.activeElement !== ta) ta.value = rowsToText();
+    renderFilters(); renderAll();
+    if (!CLOUD.dirty) setSync('ok');
+  } catch (e) {
+    console.error('Supabase load error', e);
+    setSync('error', 'Не удалось обновить данные: ' + (e && e.message ? e.message : e));
+  }
+}
+function onRemote(p){
+  if (CT.indexOf(p.table) < 0) return;
+  const row = p.eventType === 'DELETE' ? (p.old || {}) : (p.new || {});
+  const id = p.table === 'settings' ? 'set:' + row.key : p.table + ':' + row.id;
+  const m = CLOUD.mine.get(id);
+  if (m) {
+    if (p.eventType === 'DELETE' ? m.del : (!m.del && Object.keys(m.v).every(k => JSON.stringify(m.v[k]) === JSON.stringify(row[k]) || String(m.v[k]) === String(row[k])))) return;
+  }
+  schedulePull(800);
+}
+function subscribeCloud(){
+  let first = true;
+  CLOUD.db.channel('workflow-sync').on('postgres_changes', { event: '*', schema: 'public' }, onRemote).subscribe(status => {
+    if (status === 'SUBSCRIBED') { if (!first) schedulePull(0); first = false; if (!CLOUD.dirty && !CLOUD.busy) setSync('ok'); }
+    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('error', 'Нет связи с Supabase Realtime, пробую переподключиться…');
+  });
+  document.addEventListener('pointerdown', () => { CLOUD.down = true; }, true);
+  ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { CLOUD.down = false; schedulePull(300); }, true));
+  document.addEventListener('focusout', () => schedulePull(500));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) schedulePull(0); });
+  window.addEventListener('online', () => schedulePull(0));
+  window.addEventListener('beforeunload', e => { if (CLOUD.on && (CLOUD.dirty || CLOUD.busy)) { e.preventDefault(); e.returnValue = ''; } });
+}
+
 /* ---- boot ---- */
-(function boot(){
+(async function boot(){
   const th = kv.get('wf.theme'); if (th === 'light' || th === 'dark') document.documentElement.setAttribute('data-theme', th);
   const cur = kv.get('wf.cur'); if (cur) { S.cur = cur; $('#curSel').value = cur; }
   $('#tplHeader').textContent = TEMPLATE_HEADER.replace(/\t/g, '  |  ');
   bind();
   const v = location.hash.replace('#', ''); if (VIEWS[v]) S.view = v;
+
+  if (cloudConfigured()) {
+    CLOUD.db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    CLOUD.on = true; setSync('connecting');
+    try {
+      const d = await pullData();
+      if (!d.stores.length && !d.sales.length && !d.settings.length) {   // база пустая: кладём демо-данные
+        CLOUD.snap = emptyTables();
+        loadText(sampleText(), true);
+      } else {
+        applyState(stateFromData(d));
+        CLOUD.snap = buildTables();
+        initPeriod();
+        $('#dataInput').value = rowsToText();
+        renderFilters(); renderAll();
+      }
+      subscribeCloud();
+      if (!CLOUD.dirty) setSync('ok');
+      return;
+    } catch (e) {
+      console.error('Supabase connect error', e);
+      CLOUD.on = false;
+      setSync('error', 'Supabase не отвечает: ' + (e && e.message ? e.message : e) + '. Работаю локально, данные не синхронизируются.');
+    }
+  } else setSync('off');
+
   if (restore()) {
     initPeriod();
     $('#dataInput').value = rowsToText();

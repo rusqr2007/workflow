@@ -1,3 +1,7 @@
+
+
+HTML icon
+index_updated
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Workflow AI</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -324,6 +328,7 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
           <div class="chart" id="revChart"></div>
         </article>
         <article class="card" id="storesCard"></article>
+        <article class="card" id="commentsCard"></article>
       </div>
     </section>
 
@@ -390,9 +395,10 @@ function fmtDMY(s){ return fmtDM(s) + '.' + s.slice(0, 4); }
 
 const KEYLABEL = {
   date: 'Дата', store: 'Магазин', emp: 'Сотрудник', rev: 'Выручка', checks: 'Чеки', units: 'Штуки',
-  traffic: 'Трафик', plan: 'План', ly_rev: 'Выручка ПГ', ly_checks: 'Чеки ПГ', ly_units: 'Штуки ПГ', ly_traffic: 'Трафик ПГ'
+  traffic: 'Трафик', plan: 'План', ly_rev: 'Выручка ПГ', ly_checks: 'Чеки ПГ', ly_units: 'Штуки ПГ', ly_traffic: 'Трафик ПГ',
+  comment: 'Комментарий', promo: 'Акции', staffCount: 'Люди в смене'
 };
-const TEMPLATE_HEADER = ['date', 'store', 'emp', 'rev', 'checks', 'units', 'traffic', 'plan', 'ly_rev', 'ly_checks', 'ly_units', 'ly_traffic']
+const TEMPLATE_HEADER = ['date', 'store', 'emp', 'rev', 'checks', 'units', 'traffic', 'plan', 'ly_rev', 'ly_checks', 'ly_units', 'ly_traffic', 'comment', 'promo', 'staffCount']
   .map(k => KEYLABEL[k]).join('\t');
 
 function num(v){
@@ -431,12 +437,15 @@ function detectCol(h){
   else if (/дата|date|(^| )день( |$)/.test(t)) base = 'date';
   else if (/магазин|филиал|точк|store|shop|branch/.test(t)) base = 'store';
   else if (/сотрудник|продав|employee|фио|имя|staff|seller/.test(t)) base = 'emp';
-  else if (/выруч|продаж|оборот|revenue|sales|turnover/.test(t)) base = 'rev';
-  else if (/чек|транзакц|check|receipt|transaction/.test(t)) base = 'checks';
+  else if (/выруч|продаж|оборот|revenue|sales|turnover|(^| )факт/.test(t)) base = 'rev';
+  else if (/чек|транзакц|check|receipt|transaction/.test(t) && !/средн|длин/.test(t)) base = 'checks';
   else if (/штук|товар|unit|qty|quantity|единиц|(^| )шт( |$)/.test(t)) base = 'units';
   else if (/трафик|посетител|визит|traffic|footfall|вход/.test(t)) base = 'traffic';
+  else if (/комментари|примечани|comment|note/.test(t)) base = 'comment';
+  else if (/акци|promo/.test(t)) base = 'promo';
+  else if (/люди|персонал|staff|смен/.test(t)) base = 'staffCount';
   if (!base) return null;
-  if (base === 'date' || base === 'store' || base === 'emp' || base === 'plan') return base;
+  if (['date', 'store', 'emp', 'plan', 'comment', 'promo', 'staffCount'].indexOf(base) >= 0) return base;
   return ly ? 'ly_' + base : base;
 }
 
@@ -455,7 +464,7 @@ function splitLine(line, delim){
   return out.map(s => s.trim());
 }
 
-const NUMKEYS = ['rev', 'checks', 'units', 'traffic', 'plan', 'ly_rev', 'ly_checks', 'ly_units', 'ly_traffic'];
+const NUMKEYS = ['rev', 'checks', 'units', 'traffic', 'plan', 'ly_rev', 'ly_checks', 'ly_units', 'ly_traffic', 'staffCount'];
 
 function parseText(text){
   const lines = String(text).replace(/^﻿/, '').replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
@@ -472,28 +481,34 @@ function parseText(text){
   if (colIdx.date === undefined || colIdx.rev === undefined) {
     const miss = [];
     if (colIdx.date === undefined) miss.push('«Дата»');
-    if (colIdx.rev === undefined) miss.push('«Выручка»');
+    if (colIdx.rev === undefined) miss.push('«Выручка» (Факт дня)');
     return { error: 'Не нашёл обязательные колонки: ' + miss.join(', ') + '. Проверьте первую строку с заголовками.', mapped, ignored };
   }
   const has = {}; mapped.forEach(m => { has[m.key] = true; });
   const rows = [], skipped = { date: 0, rev: 0 }, warn = { blank: 0, neg: 0, convOver: 0 };
   const stores = new Set(), emps = new Set(), seen = new Set();
   let dup = 0;
+  
+  const defStore = (window.S && S.stores && S.stores.length) ? S.stores[0] : 'Магазин 1';
+  
   for (let li = 1; li < lines.length; li++) {
     const f = splitLine(lines[li], delim);
     const d = parseDate(f[colIdx.date]);
     if (!d) { skipped.date++; continue; }
     const rev = num(f[colIdx.rev]);
     if (!isFinite(rev)) { skipped.rev++; continue; }
-    const r = { d: d, store: 'Все', emp: '—', rev: rev, checks: 0, units: 0, traffic: 0, plan: 0, lyRev: 0, lyChecks: 0, lyUnits: 0, lyTraffic: 0 };
+    const r = { d: d, store: defStore, emp: '—', rev: rev, checks: 0, units: 0, traffic: 0, plan: 0, lyRev: 0, lyChecks: 0, lyUnits: 0, lyTraffic: 0, comment: '', promo: '', staffCount: 0 };
     if (colIdx.store !== undefined && f[colIdx.store]) r.store = f[colIdx.store];
     if (colIdx.emp !== undefined && f[colIdx.emp]) r.emp = f[colIdx.emp];
-    const set = { checks: 'checks', units: 'units', traffic: 'traffic', plan: 'plan', ly_rev: 'lyRev', ly_checks: 'lyChecks', ly_units: 'lyUnits', ly_traffic: 'lyTraffic' };
+    const set = { checks: 'checks', units: 'units', traffic: 'traffic', plan: 'plan', ly_rev: 'lyRev', ly_checks: 'lyChecks', ly_units: 'lyUnits', ly_traffic: 'lyTraffic', staffCount: 'staffCount' };
     for (const k in set) {
       if (colIdx[k] === undefined) continue;
       const v = num(f[colIdx[k]]);
       if (isFinite(v)) r[set[k]] = v; else warn.blank++;
     }
+    if (colIdx.comment !== undefined && f[colIdx.comment]) r.comment = String(f[colIdx.comment]).trim();
+    if (colIdx.promo !== undefined && f[colIdx.promo]) r.promo = String(f[colIdx.promo]).trim();
+    
     if (r.rev < 0) warn.neg++;
     if (r.traffic > 0 && r.checks > r.traffic) warn.convOver++;
     const key = r.d + '|' + r.store + '|' + r.emp;
@@ -501,7 +516,7 @@ function parseText(text){
     stores.add(r.store); emps.add(r.emp);
     rows.push(r);
   }
-  if (!rows.length) return { error: 'Ни одна строка не разобрана. Проверьте формат даты (2026-10-15 или 15.10.2026) и числа в колонке «Выручка».', mapped, ignored };
+  if (!rows.length) return { error: 'Ни одна строка не разобрана. Проверьте формат даты и числа.', mapped, ignored };
   rows.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
   return {
     rows: rows,
@@ -886,17 +901,18 @@ function fillFromSales(store, ym){
 }
 
 /* ---- rows ---- */
-const ROWCOLS = [['date', 'd'], ['store', 'store'], ['emp', 'emp'], ['rev', 'rev'], ['checks', 'checks'], ['units', 'units'], ['traffic', 'traffic'], ['plan', 'plan'], ['ly_rev', 'lyRev'], ['ly_checks', 'lyChecks'], ['ly_units', 'lyUnits'], ['ly_traffic', 'lyTraffic']];
+const ROWCOLS = [['date', 'd'], ['store', 'store'], ['emp', 'emp'], ['rev', 'rev'], ['checks', 'checks'], ['units', 'units'], ['traffic', 'traffic'], ['plan', 'plan'], ['ly_rev', 'lyRev'], ['ly_checks', 'lyChecks'], ['ly_units', 'lyUnits'], ['ly_traffic', 'lyTraffic'], ['comment', 'comment'], ['promo', 'promo'], ['staffCount', 'staffCount']];
 function rowsToText(){
-  const has = S.meta.has, cols = ROWCOLS.filter(c => c[0] === 'date' || c[0] === 'rev' || has[c[0]]);
+  const has = S.meta.has, cols = ROWCOLS.filter(c => c[0] === 'date' || c[0] === 'rev' || has[c[0]] || c[0] === 'comment' || c[0] === 'promo' || c[0] === 'staffCount');
   return [cols.map(c => KEYLABEL[c[0]]).join('\t')].concat(S.rows.map(r => cols.map(c => r[c[1]]).join('\t'))).join('\n');
 }
 function addRowFromForm(v){
-  const r = { d: v.d, store: v.store, emp: v.emp || '—', rev: v.rev, checks: v.checks || 0, units: v.units || 0, traffic: v.traffic || 0, plan: v.plan || 0, lyRev: v.lyRev || 0, lyChecks: v.lyChecks || 0, lyUnits: v.lyUnits || 0, lyTraffic: v.lyTraffic || 0 };
+  const r = { d: v.d, store: v.store, emp: v.emp || '—', rev: v.rev, checks: v.checks || 0, units: v.units || 0, traffic: v.traffic || 0, plan: v.plan || 0, lyRev: v.lyRev || 0, lyChecks: v.lyChecks || 0, lyUnits: v.lyUnits || 0, lyTraffic: v.lyTraffic || 0, comment: v.comment || '', promo: v.promo || '', staffCount: v.staffCount || 0 };
   const has = S.meta.has;
   has.store = true; if (v.emp) has.emp = true;
   if (v.checks) has.checks = true; if (v.units) has.units = true; if (v.traffic) has.traffic = true; if (v.plan) has.plan = true;
   if (v.lyRev) has.ly_rev = true; if (v.lyChecks) has.ly_checks = true; if (v.lyUnits) has.ly_units = true; if (v.lyTraffic) has.ly_traffic = true;
+  if (v.comment) has.comment = true; if (v.promo) has.promo = true; if (v.staffCount) has.staffCount = true;
   let i = S.rows.length; while (i > 0 && S.rows[i - 1].d > r.d) i--;
   S.rows.splice(i, 0, r);
   syncMeta();
@@ -909,8 +925,8 @@ function deleteRow(i){ S.rows.splice(i, 1); syncMeta(); }
 function persist(){
   if (CLOUD.on) { scheduleFlush(); return; }
   try {
-    const o = { v: 2, sample: S.isSample, has: S.meta.has, stores: S.stores, roster: S.roster, shifts: S.shifts, minStaff: S.minStaff,
-      rows: S.rows.map(r => [r.d, r.store, r.emp, r.rev, r.checks, r.units, r.traffic, r.plan, r.lyRev, r.lyChecks, r.lyUnits, r.lyTraffic]) };
+    const o = { v: 3, sample: S.isSample, has: S.meta.has, stores: S.stores, roster: S.roster, shifts: S.shifts, minStaff: S.minStaff,
+      rows: S.rows.map(r => [r.d, r.store, r.emp, r.rev, r.checks, r.units, r.traffic, r.plan, r.lyRev, r.lyChecks, r.lyUnits, r.lyTraffic, r.comment || '', r.promo || '', r.staffCount || 0]) };
     const s = JSON.stringify(o);
     kv.set('wf.model', s.length < 4500000 ? s : '');
   } catch (e) {}
@@ -919,8 +935,8 @@ function restore(){
   const raw = kv.get('wf.model'); if (!raw) return false;
   try {
     const o = JSON.parse(raw);
-    if (!o || o.v !== 2 || !o.rows || !o.rows.length) return false;
-    S.rows = o.rows.map(a => ({ d: a[0], store: a[1], emp: a[2], rev: a[3], checks: a[4], units: a[5], traffic: a[6], plan: a[7], lyRev: a[8], lyChecks: a[9], lyUnits: a[10], lyTraffic: a[11] }));
+    if (!o || (o.v !== 2 && o.v !== 3) || !o.rows || !o.rows.length) return false;
+    S.rows = o.rows.map(a => ({ d: a[0], store: a[1], emp: a[2], rev: a[3], checks: a[4], units: a[5], traffic: a[6], plan: a[7], lyRev: a[8], lyChecks: a[9], lyUnits: a[10], lyTraffic: a[11], comment: a[12] || '', promo: a[13] || '', staffCount: a[14] || 0 }));
     S.meta = { has: o.has || {}, mapped: [], ignored: [], skipped: { date: 0, rev: 0 }, warn: { blank: 0, neg: 0, convOver: 0 }, dup: 0, total: S.rows.length, stores: [], emps: [], min: S.rows[0].d, max: S.rows[0].d };
     S.stores = o.stores || []; S.roster = o.roster || {}; S.shifts = o.shifts || {}; S.minStaff = o.minStaff || 2; S.isSample = !!o.sample;
     syncMeta();
@@ -1087,12 +1103,26 @@ function renderStores(){
   requestAnimationFrame(() => requestAnimationFrame(() => $$('.bar[data-w]', card).forEach(b => { b.style.width = b.dataset.w + '%'; })));
 }
 
+function renderComments(){
+  const card = $('#commentsCard');
+  if (!card) return;
+  const evs = CTX.rows.filter(r => r.comment || r.promo).sort((a,b) => a.d < b.d ? 1 : (a.d > b.d ? -1 : 0));
+  if (!evs.length) { card.hidden = true; return; }
+  card.hidden = false;
+  card.innerHTML = '<h2>События и комментарии</h2><ul class="list" style="margin-top: 12px; gap: 14px;">' + evs.map(r => {
+    let t = '';
+    if (r.promo) t += '<span class="tag demo" style="margin-right:8px; margin-bottom:6px; display:inline-block;">' + esc(r.promo) + '</span><br>';
+    if (r.comment) t += esc(r.comment);
+    return '<li><span class="tx"><small style="display:block; margin-bottom:4px; color:var(--muted);">' + fmtDMY(r.d) + (r.store !== 'Все' ? ' · ' + esc(r.store) : '') + '</small>' + t + '</span></li>';
+  }).join('') + '</ul>';
+}
+
 function renderDashboard(){
   if (!CTX.rows.length) {
     $('#analyst').innerHTML = noteBox('Нет данных за период', 'Выберите другие даты или магазин.');
-    $('#kpis').innerHTML = ''; $('#revChart').innerHTML = ''; $('#storesCard').hidden = true; return;
+    $('#kpis').innerHTML = ''; $('#revChart').innerHTML = ''; $('#storesCard').hidden = true; $('#commentsCard').hidden = true; return;
   }
-  renderAnalyst(); renderKpis(); renderRevChart(); renderStores();
+  renderAnalyst(); renderKpis(); renderRevChart(); renderStores(); renderComments();
 }
 /* UI part 3: team, shifts */
 const RLAB = { planPct: 'выполнение плана', conv: 'конверсия', atv: 'средний чек', upt: 'UPT' };
@@ -1298,14 +1328,19 @@ function renderDataForm(){
     '<label>Сотрудник<select id="fEmpSel"><option value="">Без сотрудника</option>' + emps.map(e => '<option>' + esc(e) + '</option>').join('') + '</select></label>' +
     f('fRev', 'Выручка *', '0') + f('fChecks', 'Чеки') + f('fUnits', 'Штуки') + f('fTraffic', 'Трафик') + f('fPlan', 'План') + '</div>' +
     '<details class="more"><summary>Прошлый год (для LFL)</summary><div class="fgrid">' + f('fLyRev', 'Выручка ПГ') + f('fLyChecks', 'Чеки ПГ') + f('fLyUnits', 'Штуки ПГ') + f('fLyTraffic', 'Трафик ПГ') + '</div></details>' +
-    '<div class="row"><button class="primary" type="submit">Добавить строку</button></div><p class="msg" id="addMsg">Поля со звёздочкой обязательны. Пустые числа считаются нулём.</p></form>';
+    '<details class="more" open><summary>Дополнительно</summary><div class="fgrid">' +
+    f('fStaffCount', 'Люди в смене') +
+    '<label>Акции<input type="text" id="fPromo" class="txt" autocomplete="off"></label>' +
+    '<label style="grid-column: 1 / -1">Комментарий<textarea id="fComment" class="txt" style="min-height: 60px;"></textarea></label>' +
+    '</div></details>' +
+    '<div class="row" style="margin-top: 14px;"><button class="primary" type="submit">Добавить строку</button></div><p class="msg" id="addMsg">Поля со звёздочкой обязательны. Пустые числа считаются нулём.</p></form>';
 }
 function renderRows(){
   const card = $('#rowsCard'), n = S.rows.length;
   if (!n) { card.innerHTML = '<h2>Последние строки</h2><p class="empty">Пока нет продаж. Добавьте первую строку выше или вставьте таблицу.</p>'; return; }
   const last = S.rows.slice(-12).map((r, i) => ({ r: r, i: n - Math.min(12, n) + i })).reverse();
-  card.innerHTML = '<h2>Последние строки</h2><div class="tw"><table class="rows-t"><thead><tr><th>Дата</th><th>Магазин</th><th>Сотрудник</th><th>Выручка</th><th>Чеки</th><th>Трафик</th><th></th></tr></thead><tbody>' +
-    last.map(x => '<tr><td>' + fmtDM(x.r.d) + '</td><td>' + esc(x.r.store) + '</td><td>' + esc(x.r.emp) + '</td><td>' + fmtExact(x.r.rev) + '</td><td>' + (x.r.checks || '—') + '</td><td>' + (x.r.traffic || '—') + '</td><td><button type="button" data-del-row="' + x.i + '" aria-label="Удалить строку за ' + fmtDM(x.r.d) + '">×</button></td></tr>').join('') +
+  card.innerHTML = '<h2>Последние строки</h2><div class="tw"><table class="rows-t"><thead><tr><th>Дата</th><th>Магазин</th><th>Выручка</th><th>Чеки</th><th>Трафик</th><th>Комментарий</th><th></th></tr></thead><tbody>' +
+    last.map(x => '<tr><td>' + fmtDM(x.r.d) + '</td><td>' + esc(x.r.store) + '</td><td>' + fmtExact(x.r.rev) + '</td><td>' + (x.r.checks || '—') + '</td><td>' + (x.r.traffic || '—') + '</td><td>' + (x.r.comment ? esc(x.r.comment).substring(0, 40) + '...' : '—') + '</td><td><button type="button" data-del-row="' + x.i + '" aria-label="Удалить строку за ' + fmtDM(x.r.d) + '">×</button></td></tr>').join('') +
     '</tbody></table></div><p class="sub" style="margin-top:10px">Показаны последние 12 из ' + nf0.format(n) + '. Остальные видны в поле «Вставить таблицу целиком».</p>';
 }
 function renderReset(){
@@ -1450,6 +1485,11 @@ function submitRow(){
     v[o[1]] = x;
   }
   if (v.checks > 0 && v.traffic > 0 && v.checks > v.traffic) return fail('Чеков не может быть больше, чем посетителей. Проверьте «Чеки» и «Трафик».');
+  
+  v.staffCount = num(g('fStaffCount')) || 0;
+  v.promo = g('fPromo');
+  v.comment = g('fComment');
+  
   addRowFromForm(v);
   S.form = { d: d, store: store };
   S.store = 'all';
@@ -1656,9 +1696,9 @@ function setSync(state, msg){
 function emptyTables(){ const T = {}; CT.forEach(t => { T[t] = new Map(); }); return T; }
 function rowToDb(r){
   return { id: r.id, day: r.d, store: r.store, emp: r.emp, rev: r.rev, checks: r.checks, units: r.units, traffic: r.traffic, plan: r.plan,
-    ly_rev: r.lyRev, ly_checks: r.lyChecks, ly_units: r.lyUnits, ly_traffic: r.lyTraffic };
+    ly_rev: r.lyRev, ly_checks: r.lyChecks, ly_units: r.lyUnits, ly_traffic: r.lyTraffic, comment: r.comment || '', promo: r.promo || '', staff_count: r.staffCount || 0 };
 }
-function dbSig(o){ return [o.day, o.store, o.emp, o.rev, o.checks, o.units, o.traffic, o.plan, o.ly_rev, o.ly_checks, o.ly_units, o.ly_traffic].join('|'); }
+function dbSig(o){ return [o.day, o.store, o.emp, o.rev, o.checks, o.units, o.traffic, o.plan, o.ly_rev, o.ly_checks, o.ly_units, o.ly_traffic, o.comment, o.promo, o.staff_count].join('|'); }
 
 function stateFromS(){ return { stores: S.stores, roster: S.roster, shifts: S.shifts, rows: S.rows, minStaff: S.minStaff, sample: S.isSample, has: S.meta.has }; }
 
@@ -1674,7 +1714,7 @@ function stateFromData(d){
     b[x.day] = x.type; ids.shifts.set(K3(x.store, x.emp, x.day), x.id);
   });
   const rows = d.sales.map(x => ({ id: x.id, d: x.day, store: x.store, emp: x.emp, rev: +x.rev, checks: +x.checks, units: +x.units, traffic: +x.traffic,
-    plan: +x.plan, lyRev: +x.ly_rev, lyChecks: +x.ly_checks, lyUnits: +x.ly_units, lyTraffic: +x.ly_traffic }));
+    plan: +x.plan, lyRev: +x.ly_rev, lyChecks: +x.ly_checks, lyUnits: +x.ly_units, lyTraffic: +x.ly_traffic, comment: x.comment || '', promo: x.promo || '', staffCount: +x.staff_count || 0 }));
   rows.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
   const cfg = {}; d.settings.forEach(x => { cfg[x.key] = x.value; });
   return { ids: ids, stores: names, roster: roster, shifts: shifts, rows: rows,
@@ -1757,8 +1797,6 @@ async function flushCloud(){
   CLOUD.busy = true; CLOUD.dirty = false; CLOUD.again = false; clearTimeout(CLOUD.retryT);
   try {
     const cur = buildTables(), df = diffTables(cur, CLOUD.snap), db = CLOUD.db;
-    // запоминаем, что именно пишем: эхо своих же изменений из Realtime не перезагружаем,
-    // а чужое изменение той же строки (другие значения) обработаем
     const mine = [];
     CT.forEach(t => {
       df.up[t].forEach(o => mine.push([t === 'settings' ? 'set:' + o.key : t + ':' + o.id, { v: t === 'settings' ? { value: o.value } : o }]));
@@ -1851,7 +1889,6 @@ function subscribeCloud(){
     if (status === 'SUBSCRIBED') { if (!first) schedulePull(0); first = false; if (!CLOUD.dirty && !CLOUD.busy) setSync('ok'); }
     else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('error', 'Нет связи с Supabase Realtime, пробую переподключиться…');
   });
-  // страховка: если realtime-канал молчит, подтягиваем изменения опросом (без перерисовки, если ничего не изменилось)
   setInterval(() => { if (!document.hidden) schedulePull(0); }, 8000);
   document.addEventListener('pointerdown', () => { CLOUD.down = true; }, true);
   ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { CLOUD.down = false; schedulePull(300); }, true));
@@ -1890,7 +1927,7 @@ function subscribeCloud(){
     } catch (e) {
       console.error('Supabase connect error', e);
       CLOUD.on = false;
-      setSync('error', 'Supabase не отвечает: ' + (e && e.message ? e.message : e) + '. Работаю локально, данные не синхронизируются.');
+      setSync('error', 'Supabase не отвечает: ' + (e && e.message ? e.message : e) + '. Работаю локально, данные не синхронизиர்த்துются.');
     }
   } else setSync('off');
 
@@ -1906,3 +1943,4 @@ function subscribeCloud(){
 </script>
 
 </body></html>
+Ensuring backward data compatibility for operational metrics

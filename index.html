@@ -1,10 +1,5 @@
-
-
-HTML icon
-index_updated
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Workflow AI</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c0a14"><meta name="color-scheme" content="dark light"><title>Workflow AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -39,7 +34,7 @@ index_updated
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;padding-top:max(16px,env(safe-area-inset-top,0px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
 button,select,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -270,7 +265,59 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
 .sync.saving i,.sync.connecting i{background:var(--warn)}
 .sync.error i{background:var(--bad)}
 .sync.error{color:var(--bad)}
+
+/* ---- daily ---- */
+.dtop{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.dbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 4px}
+.dbar label{display:flex;align-items:center;gap:8px}
+.dsum{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;margin:14px 0}
+.dsum>div{background:var(--surface-2);border-radius:12px;padding:10px 12px;min-width:0}
+.dsum small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
+.dsum b{font-family:var(--f-display);font-weight:500;font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.daily{width:100%}
+table.daily th,table.daily td{padding:4px 5px;white-space:nowrap}
+table.daily th{padding:8px 5px}
+table.daily td.c-d{position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;padding-right:10px;min-width:74px}
+table.daily td.c-d span{color:var(--muted);font-size:12px;margin-left:2px}
+tr.dy.we td.c-d span{color:var(--warn)}
+tr.dy.today td.c-d{box-shadow:inset 3px 0 var(--accent)}
+tr.dy.today td{background:var(--accent-soft)}
+tr.dy.today td.c-d{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.dn{width:100%;min-width:64px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;text-align:right;font-family:var(--f-body);font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg)}
+.dn.t{text-align:left;min-width:150px}
+.dn.rv{min-width:112px}
+textarea.dn.t{min-width:260px}
+textarea.dn{min-height:32px;height:32px;resize:vertical;line-height:1.35;font-family:var(--f-body)}
+.dn.bad{border-color:var(--bad)}
+td.calc,td.ro{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+td.ro{font-family:var(--f-body)}
+.mt{font-style:normal;font-size:10.5px;color:var(--warn);margin-left:4px}
+tr.wk td{background:var(--surface-2);font-family:var(--f-mono);font-size:12px;color:var(--fg);border-bottom:1px solid var(--line)}
+tr.wk td.c-d{background:var(--surface-2);color:var(--muted)}
+.drop{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);margin-top:12px}
+.drop.drag{border-color:var(--accent);color:var(--fg)}
+@media (max-width:760px){
+  table.daily,table.daily tbody{display:block;width:100%}
+  table.daily thead{display:none}
+  table.daily tr.dy,table.daily tr.wk{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  table.daily tr.wk{background:var(--surface-2)}
+  table.daily td,table.daily td.c-d{display:block;border:0;padding:0;text-align:left;position:static;min-width:0;background:none!important;box-shadow:none}
+  table.daily td::before{content:attr(data-l);display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--f-mono);margin-bottom:3px}
+  table.daily td.c-d{grid-column:1/-1;font-size:15px}
+  table.daily td.c-d::before{display:none}
+  table.daily td.wide{grid-column:1/-1}
+  table.daily tr.dy td:nth-child(2){grid-column:1/-1}
+  table.daily tr.dy td:nth-child(10){grid-column:span 2}
+  table.daily td::before{font-size:9.5px}
+  .dn{min-width:0!important}
+  table.daily tr.dy.today{border-color:var(--accent)}
+  .dn{font-size:16px;padding:9px 10px}
+  textarea.dn{height:44px}
+  .dsum{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){ input,select,textarea{font-size:16px} }
 </style>
+</head><body>
 <div class="app" id="app">
   <aside class="rail">
     <div class="brand">
@@ -279,6 +326,7 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
     </div>
     <nav class="nav" aria-label="Разделы">
       <button class="nav-btn" data-view="dashboard">Обзор</button>
+      <button class="nav-btn" data-view="daily">Дни</button>
       <button class="nav-btn" data-view="team">Сотрудники</button>
       <button class="nav-btn" data-view="shifts">Графики</button>
       <button class="nav-btn" data-view="stores">Магазины</button>
@@ -307,6 +355,7 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
             <option value="auto">Автоматически</option>
             <option value="ly">Прошлый год (колонки ПГ)</option>
             <option value="prev">Предыдущий период</option>
+            <option value="yoy">Прошлый год (те же дни по истории)</option>
           </select>
         </label>
         <div class="chips" id="presets">
@@ -332,6 +381,10 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
       </div>
     </section>
 
+    <section class="view" id="view-daily" hidden>
+      <div class="main" id="dailyBody"></div>
+    </section>
+
     <section class="view" id="view-team" hidden>
       <div class="main" id="teamBody"></div>
     </section>
@@ -347,20 +400,29 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
     <section class="view" id="view-data" hidden>
       <div class="data-grid">
         <div class="main">
+          <article class="card" id="importCard">
+            <h2>Загрузить файл</h2>
+            <p class="sub" style="margin-bottom:12px">Выберите «Ежедневный» файл (xlsx или csv): всё загрузится само. Дни добавятся или обновятся по дате, остальные данные не тронутся.</p>
+            <div class="row" style="margin-top:0">
+              <label class="eyebrow">В магазин <select id="impStore" class="ghost"></select></label>
+              <button class="primary" type="button" data-act="pick-file" data-target="data">Выбрать файл</button>
+              <span id="undoBox"></span>
+            </div>
+            <div class="drop" id="dropZone">Или перетащите файл сюда</div>
+            <p class="msg" id="dataMsg">Колонки распознаются по названиям: Дата, Факт дня, Трафик, Кол-во чеков, Кол-во прод. единиц, Люди в смене, Акции, Примечания. Close Rate, средний чек и длина чека считаются сами.</p>
+          </article>
           <article class="card" id="addCard"></article>
           <article class="card">
-            <h2>Вставить таблицу целиком</h2>
-            <textarea id="dataInput" spellcheck="false" wrap="off" aria-label="Данные из Excel или CSV"></textarea>
+            <h2>Вставить таблицу из Excel</h2>
+            <textarea id="dataInput" spellcheck="false" wrap="off" style="min-height:120px" aria-label="Данные из Excel или CSV" placeholder="Скопируйте строки вместе с заголовками и вставьте сюда"></textarea>
             <div class="row">
-              <button class="primary" id="applyBtn" type="button">Рассчитать</button>
-              <button class="ghost" id="fileBtn" type="button">Загрузить файл</button>
-              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
+              <button class="primary" id="applyBtn" type="button">Добавить в магазин</button>
+              <button class="ghost" type="button" data-act="export-csv">Скачать копию (CSV)</button>
               <span id="resetBox"></span>
               <label class="eyebrow" style="margin-left:auto">Валюта
                 <select id="curSel" class="ghost"><option>₸</option><option>₽</option><option>$</option><option>€</option></select>
               </label>
             </div>
-            <p class="msg" id="dataMsg">Скопируйте таблицу из Excel и вставьте в поле, или перетащите файл. Поле всегда показывает все ваши строки, их можно править прямо здесь.</p>
           </article>
           <article class="card" id="rowsCard"></article>
         </div>
@@ -381,6 +443,7 @@ table.sched td.tot{font-family:var(--f-mono);color:var(--muted);padding-left:8px
     </section>
   </main>
 </div>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 /* ENGINE: parsing, dates, aggregation, sample data. No DOM here. */
@@ -432,18 +495,20 @@ function parseDate(v){
 function detectCol(h){
   const t = String(h).toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
   const ly = /(^| )(пг|ly|py)( |$)|прошл|аналог|год назад|last year/.test(t);
+  if (/недел|weekday|day of week/.test(t)) return null;          // «День недели» не дата
+  if (/close rate|конверс|средн|длин/.test(t)) return null;      // считаются сами
   let base = null;
   if (/(^| )(план|plan)/.test(t) && !ly) base = 'plan';
   else if (/дата|date|(^| )день( |$)/.test(t)) base = 'date';
+  else if (/акци|promo/.test(t)) base = 'promo';
+  else if (/комментари|примечани|comment|note/.test(t)) base = 'comment';
+  else if (/люди|персонал|staff|смен/.test(t) && !/сотрудник/.test(t)) base = 'staffCount';
   else if (/магазин|филиал|точк|store|shop|branch/.test(t)) base = 'store';
-  else if (/сотрудник|продав|employee|фио|имя|staff|seller/.test(t)) base = 'emp';
+  else if (/сотрудник|продав|employee|фио|имя|seller/.test(t)) base = 'emp';
   else if (/выруч|продаж|оборот|revenue|sales|turnover|(^| )факт/.test(t)) base = 'rev';
-  else if (/чек|транзакц|check|receipt|transaction/.test(t) && !/средн|длин/.test(t)) base = 'checks';
+  else if (/чек|транзакц|check|receipt|transaction/.test(t)) base = 'checks';
   else if (/штук|товар|unit|qty|quantity|единиц|(^| )шт( |$)/.test(t)) base = 'units';
   else if (/трафик|посетител|визит|traffic|footfall|вход/.test(t)) base = 'traffic';
-  else if (/комментари|примечани|comment|note/.test(t)) base = 'comment';
-  else if (/акци|promo/.test(t)) base = 'promo';
-  else if (/люди|персонал|staff|смен/.test(t)) base = 'staffCount';
   if (!base) return null;
   if (['date', 'store', 'emp', 'plan', 'comment', 'promo', 'staffCount'].indexOf(base) >= 0) return base;
   return ly ? 'ly_' + base : base;
@@ -466,11 +531,17 @@ function splitLine(line, delim){
 
 const NUMKEYS = ['rev', 'checks', 'units', 'traffic', 'plan', 'ly_rev', 'ly_checks', 'ly_units', 'ly_traffic', 'staffCount'];
 
-function parseText(text){
+function parseText(text, opts){
+  opts = opts || {};
   const lines = String(text).replace(/^﻿/, '').replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
   if (lines.length < 2) return { error: 'Нужна строка заголовков и хотя бы одна строка данных.' };
-  const first = lines[0];
-  const delim = first.indexOf('\t') >= 0 ? '\t' : first.indexOf(';') >= 0 ? ';' : ',';
+  const dlm = l => l.indexOf('\t') >= 0 ? '\t' : l.indexOf(';') >= 0 ? ';' : ',';
+  let hi = 0;
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {      // строка заголовков может быть не первой
+    const ks = splitLine(lines[i], dlm(lines[i])).map(detectCol);
+    if (ks.indexOf('date') >= 0 && ks.indexOf('rev') >= 0) { hi = i; break; }
+  }
+  const first = lines[hi], delim = dlm(first);
   const heads = splitLine(first, delim);
   const colIdx = {}, mapped = [], ignored = [];
   heads.forEach((h, i) => {
@@ -488,27 +559,24 @@ function parseText(text){
   const rows = [], skipped = { date: 0, rev: 0 }, warn = { blank: 0, neg: 0, convOver: 0 };
   const stores = new Set(), emps = new Set(), seen = new Set();
   let dup = 0;
-  
-  const defStore = (window.S && S.stores && S.stores.length) ? S.stores[0] : 'Магазин 1';
-  
-  for (let li = 1; li < lines.length; li++) {
+  const defStore = opts.store || ((window.S && S.stores && S.stores.length) ? S.stores[0] : 'Магазин 1');
+  const set = { checks: 'checks', units: 'units', traffic: 'traffic', plan: 'plan', ly_rev: 'lyRev', ly_checks: 'lyChecks', ly_units: 'lyUnits', ly_traffic: 'lyTraffic', staffCount: 'staffCount' };
+  for (let li = hi + 1; li < lines.length; li++) {
     const f = splitLine(lines[li], delim);
     const d = parseDate(f[colIdx.date]);
-    if (!d) { skipped.date++; continue; }
+    if (!d) { skipped.date++; continue; }            // итоговые строки («Факт», «Like for like») пропускаются
     const rev = num(f[colIdx.rev]);
-    if (!isFinite(rev)) { skipped.rev++; continue; }
+    if (!isFinite(rev)) { skipped.rev++; continue; }  // день без факта (будущий) пропускается
     const r = { d: d, store: defStore, emp: '—', rev: rev, checks: 0, units: 0, traffic: 0, plan: 0, lyRev: 0, lyChecks: 0, lyUnits: 0, lyTraffic: 0, comment: '', promo: '', staffCount: 0 };
     if (colIdx.store !== undefined && f[colIdx.store]) r.store = f[colIdx.store];
     if (colIdx.emp !== undefined && f[colIdx.emp]) r.emp = f[colIdx.emp];
-    const set = { checks: 'checks', units: 'units', traffic: 'traffic', plan: 'plan', ly_rev: 'lyRev', ly_checks: 'lyChecks', ly_units: 'lyUnits', ly_traffic: 'lyTraffic', staffCount: 'staffCount' };
     for (const k in set) {
       if (colIdx[k] === undefined) continue;
       const v = num(f[colIdx[k]]);
-      if (isFinite(v)) r[set[k]] = v; else warn.blank++;
+      if (isFinite(v)) r[set[k]] = v; else if (String(f[colIdx[k]] || '').trim() !== '') warn.blank++;
     }
     if (colIdx.comment !== undefined && f[colIdx.comment]) r.comment = String(f[colIdx.comment]).trim();
-    if (colIdx.promo !== undefined && f[colIdx.promo]) r.promo = String(f[colIdx.promo]).trim();
-    
+    if (colIdx.promo !== undefined && f[colIdx.promo]) r.promo = String(f[colIdx.promo]).trim().replace(/^"+|"+$/g, '');
     if (r.rev < 0) warn.neg++;
     if (r.traffic > 0 && r.checks > r.traffic) warn.convOver++;
     const key = r.d + '|' + r.store + '|' + r.emp;
@@ -522,7 +590,7 @@ function parseText(text){
     rows: rows,
     meta: {
       has: has, mapped: mapped, ignored: ignored, skipped: skipped, warn: warn, dup: dup,
-      total: lines.length - 1, stores: Array.from(stores).sort(), emps: Array.from(emps),
+      total: lines.length - hi - 1, stores: Array.from(stores).sort(), emps: Array.from(emps),
       min: rows[0].d, max: rows[rows.length - 1].d
     }
   };
@@ -596,9 +664,11 @@ const FMT = { money: fmtMoney, exact: fmtExact, pct0: v => fmtPct(v, 0), pct1: v
 
 function effMode(){
   const hasLY = !!(S.meta && S.meta.has.ly_rev);
+  const hasHist = () => { const a = addDays(S.from, -364), b = addDays(S.to, -364); return S.rows.some(r => r.d >= a && r.d <= b); };
   if (S.mode === 'prev') return 'prev';
   if (S.mode === 'ly') return hasLY ? 'ly' : 'prev';
-  return hasLY ? 'ly' : 'prev';
+  if (S.mode === 'yoy') return 'yoy';
+  return hasLY ? 'ly' : hasHist() ? 'yoy' : 'prev';
 }
 
 /* ---- build everything the views need for the current filters ---- */
@@ -609,10 +679,11 @@ function buildCtx(){
   const rows = rowsAll.filter(inStore);
   const n = dayDiff(S.from, S.to) + 1;
   const prevFrom = addDays(S.from, -n), prevTo = addDays(S.from, -1);
-  const prevAll = mode === 'prev' ? S.rows.filter(r => r.d >= prevFrom && r.d <= prevTo) : [];
+  const yFrom = addDays(S.from, -364), yTo = addDays(S.to, -364);
+  const prevAll = mode === 'prev' ? S.rows.filter(r => r.d >= prevFrom && r.d <= prevTo) : mode === 'yoy' ? S.rows.filter(r => r.d >= yFrom && r.d <= yTo) : [];
   const C = { meta: meta, mode: mode, rowsAll: rowsAll, rows: rows, prevAll: prevAll, n: n, fn: inStore,
-    baseLabel: mode === 'ly' ? 'прошлому году' : 'предыдущему периоду',
-    baseShort: mode === 'ly' ? 'ПГ' : 'пред. период' };
+    baseLabel: (mode === 'ly' || mode === 'yoy') ? 'прошлому году' : 'предыдущему периоду',
+    baseShort: (mode === 'ly' || mode === 'yoy') ? 'ПГ' : 'пред. период' };
   function baseOf(fn){ return mode === 'ly' ? lyAsBase(agg(rowsAll.filter(fn))) : agg(prevAll.filter(fn)); }
   C.baseOf = baseOf;
   const c = agg(rows), b = baseOf(inStore);
@@ -622,10 +693,11 @@ function buildCtx(){
   const byDate = new Map();
   rows.forEach(r => { if (!byDate.has(r.d)) byDate.set(r.d, []); byDate.get(r.d).push(r); });
   const prevRev = new Map();
-  if (mode === 'prev') prevAll.filter(inStore).forEach(r => prevRev.set(r.d, (prevRev.get(r.d) || 0) + r.rev));
+  if (mode === 'prev' || mode === 'yoy') prevAll.filter(inStore).forEach(r => prevRev.set(r.d, (prevRev.get(r.d) || 0) + r.rev));
+  const shiftN = mode === 'yoy' ? 364 : n;
   C.days = Array.from(byDate.keys()).sort().map(d => {
     const a = agg(byDate.get(d));
-    return { d: d, a: a, rev: a.rev, base: mode === 'ly' ? a.lyRev : (prevRev.get(addDays(d, -n)) || 0) };
+    return { d: d, a: a, rev: a.rev, base: mode === 'ly' ? a.lyRev : (prevRev.get(addDays(d, -shiftN)) || 0) };
   });
   /* stores (ignores the store filter so they can be compared) */
   C.stores = meta.stores.map(st => {
@@ -746,7 +818,7 @@ function buildAnalysis(){
   return { F: F, R: R.slice(0, 5), parts: parts, dRev: dRev };
 }
 /* MODEL: editable stores, roster, shifts, rows. Persistence in localStorage. */
-S.stores = []; S.roster = {}; S.shifts = {}; S.minStaff = 2; S.brush = 'S'; S.schedMonth = ''; S.confirm = null; S.textEdited = false;
+S.stores = []; S.roster = {}; S.shifts = {}; S.plans = {}; S.minStaff = 2; S.dayStore = null; S.dayMonth = ''; S.undo = null; S.impStore = ''; S.brush = 'S'; S.schedMonth = ''; S.confirm = null; S.textEdited = false;
 
 const SHIFT_TYPES = [
   { id: 'S', name: 'Смена', short: 'Смена', work: true },
@@ -841,6 +913,8 @@ function renameStore(old, name){
   S.stores[S.stores.indexOf(old)] = name;
   S.rows.forEach(r => { if (r.store === old) r.store = name; });
   S.roster[name] = S.roster[old] || []; delete S.roster[old];
+  if (S.plans[old]) { S.plans[name] = S.plans[old]; delete S.plans[old]; }
+  if (S.dayStore === old) S.dayStore = name;
   S.shifts[name] = S.shifts[old] || {}; delete S.shifts[old];
   if (S.store === old) S.store = name;
   if (S.shiftStore === old) S.shiftStore = name;
@@ -849,7 +923,8 @@ function renameStore(old, name){
 function deleteStore(name){
   S.stores = S.stores.filter(s => s !== name);
   S.rows = S.rows.filter(r => r.store !== name);
-  delete S.roster[name]; delete S.shifts[name];
+  delete S.roster[name]; delete S.shifts[name]; delete S.plans[name];
+  if (S.dayStore === name) S.dayStore = null;
   if (S.store === name) S.store = 'all';
   if (S.shiftStore === name) S.shiftStore = null;
   syncMeta();
@@ -923,9 +998,11 @@ function deleteRow(i){ S.rows.splice(i, 1); syncMeta(); }
 
 /* ---- persistence ---- */
 function persist(){
+  if (!S.keepUndo) S.undo = null;
+  S.keepUndo = false;
   if (CLOUD.on) { scheduleFlush(); return; }
   try {
-    const o = { v: 3, sample: S.isSample, has: S.meta.has, stores: S.stores, roster: S.roster, shifts: S.shifts, minStaff: S.minStaff,
+    const o = { v: 3, sample: S.isSample, has: S.meta.has, stores: S.stores, roster: S.roster, shifts: S.shifts, plans: S.plans, minStaff: S.minStaff,
       rows: S.rows.map(r => [r.d, r.store, r.emp, r.rev, r.checks, r.units, r.traffic, r.plan, r.lyRev, r.lyChecks, r.lyUnits, r.lyTraffic, r.comment || '', r.promo || '', r.staffCount || 0]) };
     const s = JSON.stringify(o);
     kv.set('wf.model', s.length < 4500000 ? s : '');
@@ -938,19 +1015,19 @@ function restore(){
     if (!o || (o.v !== 2 && o.v !== 3) || !o.rows || !o.rows.length) return false;
     S.rows = o.rows.map(a => ({ d: a[0], store: a[1], emp: a[2], rev: a[3], checks: a[4], units: a[5], traffic: a[6], plan: a[7], lyRev: a[8], lyChecks: a[9], lyUnits: a[10], lyTraffic: a[11], comment: a[12] || '', promo: a[13] || '', staffCount: a[14] || 0 }));
     S.meta = { has: o.has || {}, mapped: [], ignored: [], skipped: { date: 0, rev: 0 }, warn: { blank: 0, neg: 0, convOver: 0 }, dup: 0, total: S.rows.length, stores: [], emps: [], min: S.rows[0].d, max: S.rows[0].d };
-    S.stores = o.stores || []; S.roster = o.roster || {}; S.shifts = o.shifts || {}; S.minStaff = o.minStaff || 2; S.isSample = !!o.sample;
+    S.stores = o.stores || []; S.roster = o.roster || {}; S.shifts = o.shifts || {}; S.minStaff = o.minStaff || 2; S.plans = o.plans || {}; S.isSample = !!o.sample;
     syncMeta();
     return true;
   } catch (e) { return false; }
 }
 
 /* ---- start from scratch ---- */
-function todayIso(){ return new Date().toISOString().slice(0, 10); }
+function todayIso(){ const d = new Date(), p = n => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
 function emptyState(){
   const t = todayIso();
   S.rows = []; S.isSample = false;
   S.meta = { has: { date: true, rev: true, store: true }, mapped: [], ignored: [], skipped: { date: 0, rev: 0 }, warn: { blank: 0, neg: 0, convOver: 0 }, dup: 0, total: 0, stores: [], emps: [], min: t, max: t };
-  S.stores = ['Магазин 1']; S.roster = { 'Магазин 1': [] }; S.shifts = { 'Магазин 1': {} };
+  S.stores = ['Магазин 1']; S.roster = { 'Магазин 1': [] }; S.shifts = { 'Магазин 1': {} }; S.plans = {}; S.dayStore = null; S.dayMonth = '';
   S.store = 'all'; S.shiftStore = null; S.schedMonth = ''; S.openEmp = null; S.mode = 'auto';
   S.from = t; S.to = t;
   syncMeta();
@@ -979,7 +1056,7 @@ function renderAnalyst(){
     (S.isSample ? '<span class="tag demo">Демо-данные, не реальные показатели</span>' : '') + '</div>';
   if (!CTX.rows.length) { host.innerHTML = head + noteBox('Нет данных за период', 'Выберите другие даты или магазин.'); return; }
   const hero = CTX.hasBase && A.dRev != null
-    ? '<div class="an-label">' + (CTX.mode === 'ly' ? 'Динамика выручки LFL' : 'Динамика выручки к предыдущему периоду') + '</div>' +
+    ? '<div class="an-label">' + ((CTX.mode === 'ly' || CTX.mode === 'yoy') ? 'Динамика выручки LFL' : 'Динамика выручки к предыдущему периоду') + '</div>' +
       '<div class="an-num ' + (A.dRev < -0.005 ? 'bad' : A.dRev > 0.005 ? 'good' : '') + '" data-to="' + A.dRev + '" data-f="dpct"></div>' +
       '<div class="an-sub">' + fmtMoney(k.rev) + ' против ' + fmtMoney(T.kb.rev) + ' (' + CTX.baseShort + ')</div>'
     : '<div class="an-label">Выручка за период</div><div class="an-num" data-to="' + k.rev + '" data-f="money"></div><div class="an-sub">Для сравнения нужна база: колонки ПГ или данные за предыдущий период.</div>';
@@ -1278,6 +1355,172 @@ function renderAdmin(){
     '<p class="msg" id="adminMsg" style="margin:0 0 12px"></p>' +
     (stores.length ? '<div class="sboxes">' + boxes + '</div>' : '<p class="empty">Магазинов пока нет. Добавьте первый.</p>') + '</article>';
 }
+/* UI: daily journal. One row per store and day (сотрудник «—»), saved on every change. */
+const WDS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+function dayStore(){
+  const st = S.stores;
+  if (S.dayStore && st.indexOf(S.dayStore) >= 0) return S.dayStore;
+  if (S.store !== 'all' && st.indexOf(S.store) >= 0) return S.store;
+  return st[0] || null;
+}
+function dayAggFor(store){
+  const m = new Map();
+  for (let i = 0; i < S.rows.length; i++) {
+    const r = S.rows[i]; if (r.store !== store) continue;
+    let o = m.get(r.d);
+    if (!o) { o = { rev: 0, traffic: 0, checks: 0, units: 0, staff: 0, promo: '', comment: '', row: null, multi: false }; m.set(r.d, o); }
+    o.rev += r.rev; o.traffic += r.traffic; o.checks += r.checks; o.units += r.units;
+    o.staff = Math.max(o.staff, r.staffCount || 0);
+    if (r.promo && !o.promo) o.promo = r.promo;
+    if (r.comment && !o.comment) o.comment = r.comment;
+    if (r.emp === '—') o.row = r; else o.multi = true;
+  }
+  return m;
+}
+function dayRowHtml(d, o, today){
+  const w = weekday(d), O = o || {}, multi = !!O.multi, ds = fmtDM(d);
+  const val = x => x ? String(x) : '';
+  const f = (k, label, mode, v) => multi
+    ? '<td data-l="' + label + '" class="ro">' + (v ? nf0.format(+v) : '—') + '</td>'
+    : '<td data-l="' + label + '"><input class="dn' + (k === 'rev' ? ' rv' : '') + '" data-f="' + k + '" inputmode="' + mode + '" autocomplete="off" aria-label="' + label + ', ' + ds + '" value="' + esc(val(v)) + '"></td>';
+  const tx = (k, label, v, area) => multi
+    ? '<td data-l="' + label + '" class="ro wide">' + esc(v || '—') + '</td>'
+    : '<td data-l="' + label + '" class="wide">' + (area
+      ? '<textarea class="dn t" rows="1" data-f="' + k + '" aria-label="' + label + ', ' + ds + '">' + esc(v || '') + '</textarea>'
+      : '<input class="dn t" data-f="' + k + '" autocomplete="off" aria-label="' + label + ', ' + ds + '" value="' + esc(v || '') + '">') + '</td>';
+  return '<tr class="dy' + (w === 0 || w === 6 ? ' we' : '') + (d === today ? ' today' : '') + '" data-d="' + d + '">' +
+    '<td class="c-d"><b>' + ds + '</b> <span>' + WDS[w] + '</span>' + (multi ? '<em class="mt">по сотрудникам</em>' : '') + '</td>' +
+    f('rev', 'Факт дня', 'decimal', O.rev) + f('traffic', 'Трафик', 'numeric', O.traffic) + f('checks', 'Кол-во чеков', 'numeric', O.checks) +
+    '<td class="calc" data-l="Close Rate" data-c="cr"></td>' + f('units', 'Прод. единиц', 'numeric', O.units) +
+    '<td class="calc" data-l="Средний чек" data-c="atv"></td><td class="calc" data-l="Длина чека" data-c="upt"></td>' +
+    f('staff', 'Люди в смене', 'numeric', O.staff) + tx('promo', 'Акции', O.promo, false) + tx('comment', 'Комментарий', O.comment, true) + '</tr>';
+}
+function weekRowHtml(from, to){
+  return '<tr class="wk" data-from="' + from + '" data-to="' + to + '"><td class="c-d">Итого ' + fmtDM(from) + '–' + fmtDM(to) + '</td>' +
+    '<td data-l="Факт" data-c="rev"></td><td data-l="Трафик" data-c="traffic"></td><td data-l="Чеки" data-c="checks"></td><td data-l="Close Rate" data-c="cr"></td>' +
+    '<td data-l="Единиц" data-c="units"></td><td data-l="Ср. чек" data-c="atv"></td><td data-l="Длина чека" data-c="upt"></td>' +
+    '<td data-l="Like for like" data-c="lfl" colspan="3" class="wide"></td></tr>';
+}
+function renderDaily(){
+  const host = $('#dailyBody'), st = dayStore();
+  if (!st) { host.innerHTML = '<article class="card">' + noteBox('Пока нет магазинов', 'Добавьте магазин в разделе «Магазины».') + '</article>'; return; }
+  if (!S.dayMonth) S.dayMonth = todayIso().slice(0, 7);
+  const ym = S.dayMonth, days = monthDays(ym), idx = dayAggFor(st), today = todayIso();
+  const chips = S.stores.length > 1 ? '<div class="chips">' + S.stores.map(s => '<button class="chip" type="button" data-day-store="' + esc(s) + '" aria-pressed="' + (s === st) + '">' + esc(s) + '</button>').join('') + '</div>' : '';
+  const nav = '<div class="monthnav"><button class="ghost" type="button" data-dmonth="-1" aria-label="Предыдущий месяц">‹</button><b>' + monthLabel(ym) + '</b><button class="ghost" type="button" data-dmonth="1" aria-label="Следующий месяц">›</button></div>';
+  let rows = '', wkFrom = days[0];
+  days.forEach((d, i) => {
+    rows += dayRowHtml(d, idx.get(d), today);
+    if (weekday(d) === 0 || i === days.length - 1) { rows += weekRowHtml(wkFrom, d); wkFrom = addDays(d, 1); }
+  });
+  const plan = (S.plans[st] || {})[ym] || '';
+  host.innerHTML = '<article class="card"><div class="dtop">' + nav + chips + '</div>' +
+    '<div class="dbar"><button class="ghost" type="button" data-act="day-today">Сегодня</button>' +
+    '<button class="ghost" type="button" data-act="pick-file" data-target="day">Загрузить файл</button><span id="dUndo"></span>' +
+    '<label class="eyebrow" style="margin-left:auto">План на месяц <input id="dPlan" class="num" style="width:140px" inputmode="numeric" autocomplete="off" value="' + esc(plan) + '" placeholder="0"></label></div>' +
+    '<p class="msg" id="dMsg" style="margin:6px 0 0">Вносите данные в клетки: сохраняется само, у каждого магазина и месяца свои дни. Enter переводит на следующий день.</p>' +
+    '<div class="dsum" id="dSum"></div>' +
+    '<div class="tw"><table class="daily"><thead><tr><th>День</th><th>Факт дня</th><th>Трафик</th><th>Чеки</th><th>Close Rate</th><th>Прод. ед.</th><th>Ср. чек</th><th>Длина чека</th><th>Люди</th><th>Акции</th><th>Комментарий</th></tr></thead><tbody>' + rows + '</tbody></table></div></article>';
+  refreshDailyDerived();
+  renderUndo();
+  if (S.dayScroll) {
+    S.dayScroll = false;
+    const t = $('tr.today', host); if (t) t.scrollIntoView({ block: 'center' });
+  }
+}
+function refreshDailyDerived(){
+  const host = $('#dailyBody'), st = dayStore(), tb = host && $('table.daily', host);
+  if (!st || !tb) return;
+  const idx = dayAggFor(st), ym = S.dayMonth, days = monthDays(ym);
+  const put = (tr, k, t, cls) => {
+    const c = $('[data-c="' + k + '"]', tr); if (!c) return;
+    c.textContent = t; c.classList.remove('good', 'bad'); if (cls) c.classList.add(cls);
+  };
+  const crT = a => a.traffic > 0 && a.checks > 0 ? fmtPct(a.checks / a.traffic, 1) : '—';
+  const atvT = a => a.checks > 0 && a.rev ? nf0.format(a.rev / a.checks) : '—';
+  const uptT = a => a.checks > 0 && a.units > 0 ? nf2.format(a.units / a.checks) : '—';
+  const lfl = ds => {          // сравнение только по дням, где есть факт и в этом году, и год назад (364 дня = тот же день недели)
+    let c = 0, b = 0;
+    ds.forEach(d => { const o = idx.get(d), p = idx.get(addDays(d, -364)); if (o && p && o.rev > 0 && p.rev > 0) { c += o.rev; b += p.rev; } });
+    return b > 0 ? c / b - 1 : null;
+  };
+  const sum = ds => {
+    const a = { rev: 0, traffic: 0, checks: 0, units: 0 };
+    ds.forEach(d => { const o = idx.get(d); if (o) { a.rev += o.rev; a.traffic += o.traffic; a.checks += o.checks; a.units += o.units; } });
+    return a;
+  };
+  $$('tr.dy', tb).forEach(tr => {
+    const o = idx.get(tr.dataset.d) || { rev: 0, traffic: 0, checks: 0, units: 0 };
+    put(tr, 'cr', crT(o)); put(tr, 'atv', atvT(o)); put(tr, 'upt', uptT(o));
+  });
+  const range = (a, b) => { const out = []; for (let d = a; d <= b; d = addDays(d, 1)) out.push(d); return out; };
+  const lflT = l => l == null ? '—' : 'LFL ' + fmtDelta(l);
+  $$('tr.wk', tb).forEach(tr => {
+    const ds = range(tr.dataset.from, tr.dataset.to), a = sum(ds), l = lfl(ds);
+    put(tr, 'rev', a.rev ? nf0.format(a.rev) : '—'); put(tr, 'traffic', a.traffic ? nf0.format(a.traffic) : '—'); put(tr, 'checks', a.checks ? nf0.format(a.checks) : '—');
+    put(tr, 'cr', crT(a)); put(tr, 'units', a.units ? nf0.format(a.units) : '—'); put(tr, 'atv', atvT(a)); put(tr, 'upt', uptT(a));
+    put(tr, 'lfl', lflT(l), l == null ? '' : l >= 0 ? 'good' : 'bad');
+  });
+  /* month summary + plan */
+  const a = sum(days), l = lfl(days), plan = (S.plans[st] || {})[ym] || 0;
+  let elapsed = 0; days.forEach((d, i) => { const o = idx.get(d); if (o && o.rev > 0) elapsed = i + 1; });
+  const left = days.length - elapsed;
+  const tiles = [['Факт месяца', a.rev ? fmtMoney(a.rev) : '—', ''], ['Трафик', a.traffic ? nf0.format(a.traffic) : '—', ''], ['Чеки', a.checks ? nf0.format(a.checks) : '—', ''],
+    ['Close Rate', crT(a), ''], ['Средний чек', atvT(a) === '—' ? '—' : atvT(a) + NB + S.cur, ''], ['Длина чека', uptT(a), ''],
+    ['LFL к прошлому году', l == null ? '—' : fmtDelta(l), l == null ? '' : l >= 0 ? 'good' : 'bad']];
+  if (plan > 0) {
+    const pct = a.rev / plan, tend = elapsed > 0 ? a.rev / elapsed * days.length : null, gap = plan - a.rev;
+    tiles.push(['Выполнение плана', fmtPct(pct, 1), pct >= 1 ? 'good' : '']);
+    tiles.push(['До плана осталось', gap > 0 ? fmtMoney(gap) : 'Выполнен', gap > 0 ? '' : 'good']);
+    tiles.push(['В день по', gap > 0 && left > 0 ? fmtMoney(gap / left) : '—', '']);
+    tiles.push(['Тенденция месяца', tend != null ? fmtPct(tend / plan, 0) : '—', tend != null && tend >= plan ? 'good' : tend != null ? 'warn' : '']);
+  }
+  $('#dSum').innerHTML = tiles.map(x => '<div><small>' + x[0] + '</small><b class="' + x[2] + '">' + x[1] + '</b></div>').join('');
+}
+function setPlan(raw){
+  const st = dayStore(), ym = S.dayMonth, v = raw.trim() === '' ? 0 : num(raw);
+  if (!st || !isFinite(v) || v < 0) { flash('План: нужно число, например 25000000.', 'warn'); return; }
+  const p = S.plans[st] = S.plans[st] || {};
+  if (v > 0) p[ym] = v; else delete p[ym];
+  persist(); refreshDailyDerived();
+  const inp = $('#dPlan'); if (inp) inp.value = v > 0 ? String(v) : '';
+}
+function onDayEdit(inp){
+  const tr = inp.closest('tr.dy'), st = dayStore(); if (!tr || !st) return;
+  const d = tr.dataset.d, g = f => { const e = tr.querySelector('[data-f="' + f + '"]'); return e ? e.value.trim() : ''; };
+  const n = {};
+  for (const f of ['rev', 'traffic', 'checks', 'units', 'staff']) {
+    const raw = g(f);
+    if (raw === '') { n[f] = 0; continue; }
+    const x = num(raw);
+    if (!isFinite(x) || x < 0) { const e = tr.querySelector('[data-f="' + f + '"]'); e.classList.add('bad'); flash('«' + e.getAttribute('aria-label').split(',')[0] + '»: нужно число, например 125000.', 'warn'); return; }
+    n[f] = x;
+  }
+  const promo = g('promo'), comment = g('comment');
+  let r = null;
+  for (let i = 0; i < S.rows.length; i++) { const x = S.rows[i]; if (x.store === st && x.d === d && x.emp === '—') { r = x; break; } }
+  const empty = !n.rev && !n.traffic && !n.checks && !n.units && !n.staff && !promo && !comment;
+  if (empty) { if (r) S.rows.splice(S.rows.indexOf(r), 1); }
+  else {
+    if (!r) {
+      r = { d: d, store: st, emp: '—', rev: 0, checks: 0, units: 0, traffic: 0, plan: 0, lyRev: 0, lyChecks: 0, lyUnits: 0, lyTraffic: 0, comment: '', promo: '', staffCount: 0 };
+      let i = S.rows.length; while (i > 0 && S.rows[i - 1].d > d) i--;
+      S.rows.splice(i, 0, r);
+    }
+    r.rev = n.rev; r.traffic = n.traffic; r.checks = n.checks; r.units = n.units; r.staffCount = n.staff; r.promo = promo; r.comment = comment;
+    const h = S.meta.has; h.store = true;
+    if (n.traffic) h.traffic = true; if (n.checks) h.checks = true; if (n.units) h.units = true;
+    if (promo) h.promo = true; if (comment) h.comment = true; if (n.staff) h.staffCount = true;
+  }
+  /* показываем то, что реально сохранено (без пробелов и т.п.) */
+  ['rev', 'traffic', 'checks', 'units', 'staff'].forEach(f => { const e = tr.querySelector('[data-f="' + f + '"]'); if (e) { e.value = n[f] ? String(n[f]) : ''; e.classList.remove('bad'); } });
+  const bad = n.traffic > 0 && n.checks > n.traffic;
+  ['traffic', 'checks'].forEach(f => { const e = tr.querySelector('[data-f="' + f + '"]'); if (e) { e.classList.toggle('bad', bad); e.title = bad ? 'Чеков больше, чем посетителей' : ''; } });
+  syncMeta();
+  if (d > S.to) S.to = d; if (d < S.from) S.from = d;
+  persist(); refreshDailyDerived();
+}
+
 /* UI part 4: data view, filters, events, boot */
 function plural(n, a, b, c){ const m = n % 100, d = n % 10; return (m > 10 && m < 15) ? c : d === 1 ? a : (d >= 2 && d <= 4) ? b : c; }
 const VIEWS = {
@@ -1285,7 +1528,8 @@ const VIEWS = {
   team: ['Сотрудники', 'Рейтинг, сильные стороны и рекомендации'],
   shifts: ['Графики', 'Смены на месяц и конфликты'],
   stores: ['Магазины', 'Добавляйте и переименовывайте магазины и сотрудников'],
-  data: ['Данные', 'Добавляйте продажи или вставляйте таблицу целиком']
+  data: ['Данные', 'Загрузка файла, ввод строк и копия данных'],
+  daily: ['Дни', 'Ежедневный ввод: факт, трафик, чеки по дням']
 };
 S.form = { d: '', store: '' };
 
@@ -1350,46 +1594,97 @@ function renderReset(){
 }
 
 /* ---- state transitions ---- */
-function persistAndText(){ persist(); $('#dataInput').value = rowsToText(); }
+function persistAndText(){ persist(); }
 function commit(){
   S.confirm = null;
-  persistAndText();
+  persist();
   S.openEmp = null;
   renderFilters(); renderAll();
 }
 function initPeriod(){
   const m = S.meta;
   if (!S.rows.length) { S.from = S.to = m.max || todayIso(); return; }
-  const total = dayDiff(m.min, m.max) + 1;
-  S.to = m.max; S.from = m.min;
-  if (!m.has.ly_rev && total >= 4) S.from = addDays(m.max, -Math.floor(total / 2) + 1);
+  S.to = m.max; S.from = addDays(m.max, -29);
+  if (S.from < m.min) S.from = m.min;
 }
-function loadText(text, sample){
-  const res = parseText(text);
-  if (res.error) {
-    $('#dataMsg').textContent = 'Данные не изменились. ' + res.error;
-    if (res.mapped && S.meta) { S.meta.mapped = res.mapped; S.meta.ignored = res.ignored || []; renderStatus(); }
-    return false;
-  }
-  const reset = !!sample || S.isSample || !S.rows.length;
-  S.__oldStores = S.stores.slice();
-  adoptImport(res, sample, reset);
-  S.store = 'all'; S.shiftStore = null; S.schedMonth = ''; S.openEmp = null; S.mode = 'auto'; S.confirm = null;
+/* ---- import: merge by (магазин, дата, сотрудник); the file never wipes other days or stores ---- */
+function flash(t, c){
+  ['#dataMsg', '#dMsg'].forEach(s => { const e = $(s); if (e) { e.textContent = t; e.className = 'msg ' + (c || ''); } });
+}
+const MERGE_NUM = [['checks', 'checks'], ['units', 'units'], ['traffic', 'traffic'], ['plan', 'plan'], ['ly_rev', 'lyRev'], ['ly_checks', 'lyChecks'], ['ly_units', 'lyUnits'], ['ly_traffic', 'lyTraffic'], ['staffCount', 'staffCount']];
+function importParsed(res, target, srcName){
+  const snap = { rows: S.rows.map(r => Object.assign({}, r)), stores: S.stores.slice() };
+  if (S.isSample) { S.rows = []; S.isSample = false; }
+  res.meta.stores.forEach(s => {
+    if (S.stores.indexOf(s) < 0) { S.stores.push(s); S.roster[s] = S.roster[s] || []; S.shifts[s] = S.shifts[s] || {}; }
+  });
+  const key = r => r.store + '\u0001' + r.d + '\u0001' + r.emp;
+  const map = new Map(); S.rows.forEach(r => map.set(key(r), r));
+  let added = 0, updated = 0, same = 0;
+  res.rows.forEach(n => {
+    const o = map.get(key(n));
+    if (!o) { S.rows.push(n); map.set(key(n), n); added++; return; }
+    let ch = false;
+    if (o.rev !== n.rev) { o.rev = n.rev; ch = true; }
+    MERGE_NUM.forEach(p => { if (res.meta.has[p[0]] && n[p[1]] && o[p[1]] !== n[p[1]]) { o[p[1]] = n[p[1]]; ch = true; } });
+    if (n.promo && o.promo !== n.promo) { o.promo = n.promo; ch = true; }
+    if (n.comment && o.comment !== n.comment) { o.comment = n.comment; ch = true; }
+    if (ch) updated++; else same++;
+  });
+  S.rows.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
+  Object.keys(res.meta.has).forEach(k => { if (res.meta.has[k]) S.meta.has[k] = true; });
+  S.meta.has.store = true;
+  S.meta.mapped = res.meta.mapped; S.meta.ignored = res.meta.ignored; S.meta.skipped = res.meta.skipped; S.meta.warn = res.meta.warn; S.meta.dup = res.meta.dup;
+  syncMeta();
+  S.store = 'all'; S.mode = 'auto'; S.confirm = null; S.openEmp = null;
+  S.keepUndo = true; persist(); S.undo = snap;
   initPeriod();
-  persist();
-  $('#dataInput').value = rowsToText();
-  $('#dataMsg').textContent = 'Готово: ' + nf0.format(res.rows.length) + ' строк. Откройте «Обзор».';
+  S.dayStore = res.meta.stores.length === 1 ? res.meta.stores[0] : S.dayStore;
+  S.dayMonth = res.meta.max.slice(0, 7);
   renderFilters(); renderAll();
+  const sName = res.meta.stores.length === 1 ? '«' + res.meta.stores[0] + '»' : 'магазинов: ' + res.meta.stores.length;
+  flash(sName + ': добавлено дней ' + nf0.format(added) + ', обновлено ' + nf0.format(updated) + ', без изменений ' + nf0.format(same) +
+    '. Период ' + fmtDMY(res.meta.min) + ' – ' + fmtDMY(res.meta.max) + '. Синхронизация идёт автоматически.', 'good');
+  renderUndo();
   return true;
+}
+function importText(text, target){
+  const res = parseText(text, { store: target });
+  if (res.error) { flash('Данные не изменились. ' + res.error, 'warn'); return false; }
+  return importParsed(res, target, '');
+}
+function undoImport(){
+  const u = S.undo; if (!u) return;
+  S.rows = u.rows;
+  S.stores.filter(s => u.stores.indexOf(s) < 0).forEach(s => { delete S.roster[s]; delete S.shifts[s]; delete S.plans[s]; });
+  S.stores = u.stores.slice();
+  syncMeta(); S.undo = null; persist(); initPeriod();
+  renderFilters(); renderAll(); flash('Импорт отменён.', 'good');
+}
+function renderUndo(){
+  const h = S.undo ? '<button class="ghost" type="button" data-act="undo-import">Отменить импорт</button>' : '';
+  ['#undoBox', '#dUndo'].forEach(s => { const e = $(s); if (e) e.innerHTML = h; });
+}
+function renderImport(){
+  const sel = $('#impStore'); if (!sel) return;
+  if (S.stores.indexOf(S.impStore) < 0) S.impStore = dayStore() || S.stores[0] || '';
+  sel.innerHTML = S.stores.map(s => '<option' + (s === S.impStore ? ' selected' : '') + '>' + esc(s) + '</option>').join('');
+  renderUndo();
+}
+function exportCsv(){
+  const q = v => { v = String(v == null ? '' : v); return /[;"\n\t]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const head = ROWCOLS.map(c => KEYLABEL[c[0]]).join(';');
+  const body = S.rows.map(r => ROWCOLS.map(c => q(r[c[1]])).join(';'));
+  const blob = new Blob(['﻿' + [head].concat(body).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'workflow-' + todayIso() + '.csv';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 function startFresh(){
   emptyState(); persist();
-  $('#dataInput').value = rowsToText();
   renderFilters(); renderAll();
 }
 function startEmpty(){
   emptyState(); persist();
-  $('#dataInput').value = rowsToText();
   $('#dataMsg').textContent = 'Всё очищено. Добавьте магазины в разделе «Магазины» и первые продажи выше.';
   renderFilters(); renderAll();
 }
@@ -1407,7 +1702,7 @@ function renderChrome(){
   $$('.nav-btn').forEach(b => b.setAttribute('aria-current', b.dataset.view === S.view ? 'page' : 'false'));
   $$('.view').forEach(v => { v.hidden = v.id !== 'view-' + S.view; });
   $('#pageTitle').textContent = VIEWS[S.view][0];
-  const plain = S.view === 'data' || S.view === 'stores';
+  const plain = S.view === 'data' || S.view === 'stores' || S.view === 'daily';
   $('#pageSub').textContent = plain ? VIEWS[S.view][1] : fmtDMY(S.from) + ' – ' + fmtDMY(S.to) + ' · ' + (S.store === 'all' ? S.stores.length + ' ' + plural(S.stores.length, 'магазин', 'магазина', 'магазинов') : S.store) + ' · база сравнения: ' + (CTX ? CTX.baseShort : '');
   $('#filters').hidden = plain || S.view === 'shifts';
   $('#railStat').textContent = nf0.format(S.rows.length) + ' ' + plural(S.rows.length, 'строка', 'строки', 'строк') + ' в данных';
@@ -1421,15 +1716,17 @@ function renderAll(){
   if (S.view === 'dashboard') renderDashboard();
   else if (S.view === 'team') renderTeam();
   else if (S.view === 'shifts') renderShifts();
+  else if (S.view === 'daily') renderDaily();
   else if (S.view === 'stores') renderAdmin();
-  else { renderDataForm(); renderRows(); renderStatus(); renderReset(); }
+  else { renderDataForm(); renderRows(); renderStatus(); renderReset(); renderImport(); }
 }
 function setView(v){
   if (!VIEWS[v]) v = 'dashboard';
   S.view = v; S.confirm = null;
   if (location.hash !== '#' + v) { try { history.replaceState(null, '', '#' + v); } catch (e) { location.hash = v; } }
-  renderAll();
   window.scrollTo(0, 0);
+  if (v === 'daily') S.dayScroll = true;
+  renderFilters(); renderAll();
 }
 
 /* ---- files ---- */
@@ -1448,23 +1745,33 @@ function cellText(v){
   if (v instanceof Date) return msToIso(v.getTime() + 43200000);
   return String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ');
 }
-function readFile(file){
-  const msg = $('#dataMsg'), name = file.name.toLowerCase();
-  msg.textContent = 'Читаю файл «' + file.name + '»…';
+function readFile(file, target){
+  target = target || S.impTarget || S.impStore || dayStore() || S.stores[0];
+  if (!target) { flash('Сначала добавьте магазин в разделе «Магазины».', 'warn'); return; }
+  const name = file.name.toLowerCase();
+  flash('Читаю файл «' + file.name + '»…');
   file.arrayBuffer().then(buf => {
     if (/\.xlsx?$/.test(name)) {
       return loadXLSX().then(X => {
         const wb = X.read(buf, { type: 'array', cellDates: true });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = X.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
-        return rows.map(r => r.map(cellText).join('\t')).join('\n');
+        return wb.SheetNames.map(n => ({ name: n, text: X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }).map(r => r.map(cellText).join('\t')).join('\n') }));
       });
     }
-    try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
-    catch (e) { return new TextDecoder('windows-1251').decode(buf); }
-  }).then(text => { loadText(text, false); })
-    .catch(() => { msg.textContent = 'Не удалось прочитать файл. Скопируйте ячейки из Excel и вставьте в поле ниже.'; });
+    let txt;
+    try { txt = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+    catch (e) { txt = new TextDecoder('windows-1251').decode(buf); }
+    return [{ name: '', text: txt }];
+  }).then(list => {
+    let err = '';
+    for (const c of list) {                       // берём первый лист, где нашлись Дата и Факт (лист «ТЭ» пропускается)
+      const res = parseText(c.text, { store: target });
+      if (!res.error) { importParsed(res, target, file.name); return; }
+      if (!err) err = res.error;
+    }
+    flash('Данные не изменились. ' + err + ' Нужен «Ежедневный» файл: в нём есть колонки «Дата» и «Факт дня».', 'warn');
+  }).catch(() => { flash('Не удалось прочитать файл. Скопируйте ячейки из Excel и вставьте в поле ниже.', 'warn'); });
 }
+function pickFile(target){ S.impTarget = target; $('#fileInput').click(); }
 
 /* ---- add-row form ---- */
 function submitRow(){
@@ -1543,6 +1850,8 @@ function bind(){
       return;
     }
     if (D.view) { setView(D.view); return; }
+    if (D.dayStore) { S.dayStore = D.dayStore; renderDaily(); return; }
+    if (D.dmonth) { S.dayMonth = shiftMonth(S.dayMonth || todayIso().slice(0, 7), +D.dmonth); renderDaily(); return; }
     if (D.preset) {
       const m = S.meta, p = D.preset;
       S.to = m.max;
@@ -1568,6 +1877,10 @@ function bind(){
     if (D.act) {
       const a = D.act, st = schedStore();
       if (a === 'cancel') { S.confirm = null; renderAll(); }
+      else if (a === 'pick-file') { pickFile(D.target === 'data' ? ($('#impStore').value || S.impStore) : dayStore()); }
+      else if (a === 'undo-import') { undoImport(); }
+      else if (a === 'export-csv') { exportCsv(); }
+      else if (a === 'day-today') { S.dayMonth = todayIso().slice(0, 7); S.dayScroll = true; renderDaily(); }
       else if (a === 'clear') { S.confirm = 'clear'; renderShifts(); }
       else if (a === 'clear-yes') { clearMonth(st, S.schedMonth); S.confirm = null; persist(); renderShifts(); }
       else if (a === 'fill') {
@@ -1602,6 +1915,9 @@ function bind(){
       if (err) { renderAdmin(); $('#adminMsg').textContent = err; $('#adminMsg').className = 'msg warn'; return; }
       commit(); return;
     }
+    if (t.id === 'impStore') { S.impStore = t.value; return; }
+    if (t.id === 'dPlan') { setPlan(t.value); return; }
+    if (t.matches && t.matches('table.daily [data-f]')) { onDayEdit(t); return; }
     if (t.id === 'minStaff') { S.minStaff = Math.max(0, Math.min(50, parseInt(t.value, 10) || 0)); persist(); renderShifts(); return; }
     if (t.id === 'fStoreSel') {
       S.form.store = t.value; S.form.d = $('#fDate').value || S.form.d;
@@ -1613,6 +1929,12 @@ function bind(){
   document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const t = e.target, D = t.dataset;
+    if (t.matches && t.matches('input.dn[data-f]')) {      // Enter: к тому же полю на следующем дне
+      e.preventDefault();
+      const all = $$('table.daily input.dn[data-f="' + D.f + '"]'), i = all.indexOf(t);
+      if (all[i + 1]) { all[i + 1].focus(); all[i + 1].select(); } else t.blur();
+      return;
+    }
     if (t.id === 'newStore') { e.preventDefault(); const b = $('[data-act="add-store"]'); if (b) b.click(); }
     else if (t.id === 'newEmpSched') { e.preventDefault(); const b = $('[data-act="add-emp-sched"]'); if (b) b.click(); }
     else if (D.newEmp !== undefined) { e.preventDefault(); const b = findBy('[data-add-emp]', 'addEmp', D.newEmp); if (b) b.click(); }
@@ -1628,16 +1950,18 @@ function bind(){
     S.from = f; S.to = t; $('#fFrom').value = f; $('#fTo').value = t; renderAll();
   }
   $('#fFrom').addEventListener('change', dates); $('#fTo').addEventListener('change', dates);
-  $('#applyBtn').addEventListener('click', () => { if (loadText($('#dataInput').value, false)) setView('dashboard'); });
-  $('#fileBtn').addEventListener('click', () => $('#fileInput').click());
-  $('#fileInput').addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); e.target.value = ''; });
-  const ta = $('#dataInput');
-  ta.addEventListener('dragover', e => { e.preventDefault(); ta.classList.add('drag'); });
-  ta.addEventListener('dragleave', () => ta.classList.remove('drag'));
-  ta.addEventListener('drop', e => { e.preventDefault(); ta.classList.remove('drag'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+  const target = () => $('#impStore') && $('#impStore').value || S.impStore || dayStore() || S.stores[0];
+  $('#applyBtn').addEventListener('click', () => { const ta = $('#dataInput'); if (importText(ta.value, target())) ta.value = ''; });
+  $('#fileInput').addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0], S.impTarget); e.target.value = ''; });
+  const ta = $('#dataInput'), dz = $('#dropZone');
+  [ta, dz].forEach(el => {
+    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag'); });
+    el.addEventListener('dragleave', () => el.classList.remove('drag'));
+    el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drag'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0], target()); });
+  });
   ta.addEventListener('paste', e => {
     const txt = e.clipboardData && e.clipboardData.getData('text');
-    if (txt && /[\t\n]/.test(txt)) { e.preventDefault(); if (loadText(txt, false)) $('#dataMsg').textContent += ' Таблица из буфера заменила прежние строки.'; }
+    if (txt && /[\t\n]/.test(txt)) { e.preventDefault(); importText(txt, target()); }
   });
   $('#curSel').addEventListener('change', e => { S.cur = e.target.value; kv.set('wf.cur', S.cur); renderAll(); });
   $('#copyTpl').addEventListener('click', () => {
@@ -1700,7 +2024,11 @@ function rowToDb(r){
 }
 function dbSig(o){ return [o.day, o.store, o.emp, o.rev, o.checks, o.units, o.traffic, o.plan, o.ly_rev, o.ly_checks, o.ly_units, o.ly_traffic, o.comment, o.promo, o.staff_count].join('|'); }
 
-function stateFromS(){ return { stores: S.stores, roster: S.roster, shifts: S.shifts, rows: S.rows, minStaff: S.minStaff, sample: S.isSample, has: S.meta.has }; }
+function normPlans(p){
+  const o = {}; Object.keys(p || {}).sort().forEach(s => { const m = {}; Object.keys(p[s] || {}).sort().forEach(k => { if (+p[s][k] > 0) m[k] = +p[s][k]; }); if (Object.keys(m).length) o[s] = m; });
+  return o;
+}
+function stateFromS(){ return { stores: S.stores, roster: S.roster, shifts: S.shifts, plans: S.plans, rows: S.rows, minStaff: S.minStaff, sample: S.isSample, has: S.meta.has }; }
 
 function stateFromData(d){
   const ids = { stores: new Map(), employees: new Map(), shifts: new Map() };
@@ -1718,11 +2046,11 @@ function stateFromData(d){
   rows.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
   const cfg = {}; d.settings.forEach(x => { cfg[x.key] = x.value; });
   return { ids: ids, stores: names, roster: roster, shifts: shifts, rows: rows,
-    minStaff: cfg.minStaff != null ? cfg.minStaff : 2, sample: !!cfg.sample, has: Object.assign({ date: true, rev: true }, cfg.has || {}) };
+    minStaff: cfg.minStaff != null ? cfg.minStaff : 2, plans: normPlans(cfg.plans), sample: !!cfg.sample, has: Object.assign({ date: true, rev: true }, cfg.has || {}) };
 }
 function applyState(st){
   CLOUD.ids = st.ids;
-  S.stores = st.stores; S.roster = st.roster; S.shifts = st.shifts; S.rows = st.rows; S.minStaff = st.minStaff; S.isSample = st.sample;
+  S.stores = st.stores; S.roster = st.roster; S.shifts = st.shifts; S.rows = st.rows; S.minStaff = st.minStaff; S.plans = st.plans || {}; S.isSample = st.sample;
   if (!S.meta) S.meta = { has: {}, mapped: [], ignored: [], skipped: { date: 0, rev: 0 }, warn: { blank: 0, neg: 0, convOver: 0 }, dup: 0, total: 0, stores: [], emps: [], min: todayIso(), max: todayIso() };
   S.meta.has = st.has;
   syncMeta();
@@ -1756,6 +2084,7 @@ function tablesFrom(st, ids, pool){
   const has = {}; Object.keys(st.has || {}).sort().forEach(k => { if (st.has[k]) has[k] = true; });
   T.settings.set('has', { key: 'has', value: has });
   T.settings.set('minStaff', { key: 'minStaff', value: st.minStaff });
+  T.settings.set('plans', { key: 'plans', value: normPlans(st.plans) });
   T.settings.set('sample', { key: 'sample', value: !!st.sample });
   ['stores', 'employees', 'shifts'].forEach(t => ids[t].forEach((v, k) => { if (!T[t].has(k)) ids[t].delete(k); }));
   return T;
@@ -1864,7 +2193,6 @@ async function runPull(){
     applyState(st);
     CLOUD.snap = buildTables();
     if (!hadRows) initPeriod();
-    const ta = $('#dataInput'); if (ta && !S.textEdited && document.activeElement !== ta) ta.value = rowsToText();
     renderFilters(); renderAll();
     if (!CLOUD.dirty) setSync('ok');
   } catch (e) {
@@ -1889,7 +2217,7 @@ function subscribeCloud(){
     if (status === 'SUBSCRIBED') { if (!first) schedulePull(0); first = false; if (!CLOUD.dirty && !CLOUD.busy) setSync('ok'); }
     else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('error', 'Нет связи с Supabase Realtime, пробую переподключиться…');
   });
-  setInterval(() => { if (!document.hidden) schedulePull(0); }, 8000);
+  setInterval(() => { if (!document.hidden) schedulePull(0); }, 30000);
   document.addEventListener('pointerdown', () => { CLOUD.down = true; }, true);
   ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, () => { CLOUD.down = false; schedulePull(300); }, true));
   document.addEventListener('focusout', () => schedulePull(500));
@@ -1919,7 +2247,7 @@ function subscribeCloud(){
         applyState(stateFromData(d));
         CLOUD.snap = buildTables();
         if (S.isSample) startFresh();   // в базе лежат демо-данные: стираем их (удаление уйдёт в базу)
-        else { initPeriod(); $('#dataInput').value = rowsToText(); renderFilters(); renderAll(); }
+        else { initPeriod(); renderFilters(); renderAll(); }
       }
       subscribeCloud();
       if (!CLOUD.dirty) setSync('ok');
@@ -1927,20 +2255,15 @@ function subscribeCloud(){
     } catch (e) {
       console.error('Supabase connect error', e);
       CLOUD.on = false;
-      setSync('error', 'Supabase не отвечает: ' + (e && e.message ? e.message : e) + '. Работаю локально, данные не синхронизиர்த்துются.');
+      setSync('error', 'Supabase не отвечает: ' + (e && e.message ? e.message : e) + '. Работаю локально, данные не синхронизируются.');
     }
   } else setSync('off');
 
   if (restore() && !S.isSample) {
     initPeriod();
-    $('#dataInput').value = rowsToText();
     renderFilters(); renderAll();
-  } else {
-    const old = kv.get('wf.data');
-    if (!(old && kv.get('wf.sample') === '0' && loadText(old, false))) startFresh();
-  }
+  } else startFresh();
 })();
 </script>
 
 </body></html>
-Ensuring backward data compatibility for operational metrics

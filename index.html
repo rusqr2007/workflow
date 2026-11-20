@@ -1779,7 +1779,7 @@ function renderReport(){
   card.innerHTML = '<h2>Мини-отчёт</h2><div class="chips" style="margin-bottom:12px"><button class="chip" type="button" data-act="report-kind" data-kind="period" aria-pressed="' + (S.reportKind === 'period') + '">За период</button>' +
     '<button class="chip" type="button" data-act="report-kind" data-kind="day" aria-pressed="' + (S.reportKind === 'day') + '">Последний день</button></div>' +
     '<textarea id="reportText" readonly rows="14" aria-label="Текст отчёта" style="min-height:220px"></textarea>' +
-    '<div class="row"><button class="primary" type="button" data-act="copy-report">Скопировать</button><span class="msg" id="reportMsg" style="margin:0">Текст готов для WhatsApp или Telegram.</span></div>';
+    '<div class="row"><button class="primary" type="button" data-act="copy-report">Скопировать</button><span class="msg" id="reportMsg" style="margin:0">Текст готов для анализа😊.</span></div>';
   $('#reportText').value = buildReport(S.reportKind);
 }
 function copyReport(){

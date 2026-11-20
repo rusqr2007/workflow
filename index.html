@@ -2028,7 +2028,20 @@ function readFile(file, target){
     if (/\.xlsx?$/.test(name)) {
       return loadXLSX().then(X => {
         const wb = X.read(buf, { type: 'array', cellDates: true });
-        return wb.SheetNames.map(n => ({ name: n, text: X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }).map(r => r.map(cellText).join('\t')).join('\n') }));
+        return wb.SheetNames.map(n => {
+          const ws = wb.Sheets[n];
+          /* объединённые ячейки (например, одна акция на несколько дней): текст есть только в верхней ячейке, копируем его во все строки диапазона */
+          (ws['!merges'] || []).forEach(m => {
+            if (m.s.c !== m.e.c || m.e.r <= m.s.r) return;
+            const top = ws[X.utils.encode_cell({ r: m.s.r, c: m.s.c })];
+            if (!top || top.t !== 's' || String(top.v).trim() === '') return;
+            for (let r = m.s.r + 1; r <= m.e.r; r++) {
+              const addr = X.utils.encode_cell({ r: r, c: m.s.c });
+              if (!ws[addr] || ws[addr].v == null || ws[addr].v === '') ws[addr] = { t: 's', v: top.v, w: top.w };
+            }
+          });
+          return { name: n, text: X.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' }).map(r => r.map(cellText).join('\t')).join('\n') };
+        });
       });
     }
     let txt;

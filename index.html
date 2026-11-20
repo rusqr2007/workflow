@@ -129,6 +129,10 @@ h1,h2,h3,p{margin:0}
 .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:6px}
 .legend i{display:inline-block;width:14px;height:0;border-top:2px solid var(--accent);vertical-align:middle;margin-right:6px}
 .legend i.b{border-top:2px dashed var(--muted)}
+.legend i.f{border-top:2px dotted var(--warn)}
+.ln-fc{fill:none;stroke:var(--warn);stroke-width:2;stroke-dasharray:2 5;stroke-linecap:round}
+.dsum b.good{color:var(--good)} .dsum b.bad{color:var(--bad)} .dsum b.warn{color:var(--warn)}
+#reportText{min-height:220px}
 
 /* store comparison */
 .stores{display:flex;flex-direction:column;gap:2px}
@@ -322,7 +326,7 @@ tr.wk td.c-d{background:var(--surface-2);color:var(--muted)}
   <aside class="rail">
     <div class="brand">
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="var(--accent)"/><path d="M6 17l4.5-5 3.5 3 6-7" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>Workflow ARMANI</span>
+      <span>Workflow&nbsp;AI</span>
     </div>
     <nav class="nav" aria-label="Разделы">
       <button class="nav-btn" data-view="dashboard">Обзор</button>
@@ -373,12 +377,19 @@ tr.wk td.c-d{background:var(--surface-2);color:var(--muted)}
     <section class="view" id="view-dashboard">
       <div class="main">
         <article class="card analyst" id="analyst"></article>
+        <article class="card" id="reportCard" hidden></article>
         <div class="kpis" id="kpis"></div>
         <article class="card">
           <h2>Выручка по дням</h2>
           <div class="legend"><span><i></i>Текущий период</span><span id="legBase"><i class="b"></i>База сравнения</span></div>
           <div class="chart" id="revChart"></div>
         </article>
+        <article class="card" id="planFlowCard" hidden></article>
+        <article class="card" id="weeksCard" hidden></article>
+        <article class="card" id="weekdaysCard" hidden></article>
+        <article class="card" id="promoCard" hidden></article>
+        <article class="card" id="staffCard" hidden></article>
+        <article class="card" id="anomCard" hidden></article>
         <article class="card" id="storesCard"></article>
         <article class="card" id="commentsCard"></article>
       </div>
@@ -1062,7 +1073,7 @@ function noteBox(title, text){ return '<p class="empty"><b>' + esc(title) + '</b
 function renderAnalyst(){
   const host = $('#analyst'), T = CTX.total, k = T.k, A = buildAnalysis();
   const head = '<div class="an-head"><span class="eyebrow"><i class="pulse"></i>AI Business Analyst</span><span class="tag on">Активен</span>' +
-    (S.isSample ? '<span class="tag demo">Демо-данные, не реальные показатели</span>' : '') + '</div>';
+    (S.isSample ? '<span class="tag demo">Демо-данные, не реальные показатели</span>' : '') + '<button class="ghost" type="button" data-act="toggle-report" style="margin-left:auto">Мини-отчёт</button></div>';
   if (!CTX.rows.length) { host.innerHTML = head + noteBox('Нет данных за период', 'Выберите другие даты или магазин.'); return; }
   const hero = CTX.hasBase && A.dRev != null
     ? '<div class="an-label">' + ((CTX.mode === 'ly' || CTX.mode === 'yoy') ? 'Динамика выручки LFL' : 'Динамика выручки к предыдущему периоду') + '</div>' +
@@ -1206,9 +1217,9 @@ function renderComments(){
 function renderDashboard(){
   if (!CTX.rows.length) {
     $('#analyst').innerHTML = noteBox('Нет данных за период', 'Выберите другие даты или магазин.');
-    $('#kpis').innerHTML = ''; $('#revChart').innerHTML = ''; $('#storesCard').hidden = true; $('#commentsCard').hidden = true; return;
+    $('#kpis').innerHTML = ''; $('#revChart').innerHTML = ''; $('#storesCard').hidden = true; $('#commentsCard').hidden = true; hideExtras(); return;
   }
-  renderAnalyst(); renderKpis(); renderRevChart(); renderStores(); renderComments();
+  renderAnalyst(); renderKpis(); renderRevChart(); renderStores(); renderComments(); renderExtras();
 }
 /* UI part 3: team, shifts */
 const RLAB = { planPct: 'выполнение плана', conv: 'конверсия', atv: 'средний чек', upt: 'UPT' };
@@ -1529,6 +1540,258 @@ function onDayEdit(inp){
   if (d > S.to) S.to = d; if (d < S.from) S.from = d;
   persist(); refreshDailyDerived();
 }
+
+/* ===== Аналитика из ежедневного файла: прогноз плана, дни недели, недели, акции, нагрузка, аномалии, мини-отчёт ===== */
+const WDN = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'], WD_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const EXTRA_IDS = ['planFlowCard', 'weeksCard', 'weekdaysCard', 'promoCard', 'staffCard', 'anomCard'];
+S.reportOpen = false; S.reportKind = 'period';
+
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const stdev = (a, m) => a.length > 1 ? Math.sqrt(a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1)) : 0;
+function dv(o){
+  return { conv: o.traffic > 0 && o.checks > 0 ? o.checks / o.traffic : null, atv: o.checks > 0 && o.rev > 0 ? o.rev / o.checks : null, upt: o.checks > 0 && o.units > 0 ? o.units / o.checks : null };
+}
+/* итоги по датам для выбранных магазинов (вся история, без фильтра периода) */
+function dayTotals(fn){
+  const m = new Map(), sd = new Map();
+  S.rows.forEach(r => {
+    if (!fn(r)) return;
+    let o = m.get(r.d);
+    if (!o) { o = { d: r.d, rev: 0, traffic: 0, checks: 0, units: 0, staff: 0, plan: 0, promos: [], comment: '' }; m.set(r.d, o); }
+    o.rev += r.rev; o.traffic += r.traffic; o.checks += r.checks; o.units += r.units; o.plan += r.plan;
+    const k = r.d + '\u0001' + r.store, prev = sd.get(k) || 0;
+    if ((r.staffCount || 0) > prev) { o.staff += r.staffCount - prev; sd.set(k, r.staffCount); }
+    if (r.promo) r.promo.split(/\s*[+;\n]\s*/).forEach(p => { p = p.trim(); if (p && o.promos.indexOf(p) < 0) o.promos.push(p); });
+    if (r.comment && !o.comment) o.comment = r.comment;
+  });
+  return m;
+}
+function periodDays(T){ return Array.from(T.values()).filter(o => o.d >= S.from && o.d <= S.to && o.rev > 0).sort((a, b) => a.d < b.d ? -1 : 1); }
+function setCard(id, html){ const c = $('#' + id); if (!c) return null; c.hidden = !html; if (html) c.innerHTML = html; return c; }
+function heat(v, mn, mx){ if (v == null || mx <= mn) return ''; return ' style="background:color-mix(in srgb,var(--accent) ' + Math.round(8 + (v - mn) / (mx - mn) * 34) + '%,transparent)"'; }
+
+/* ---- план месяца и прогноз ---- */
+function planFor(ym){
+  let plan = 0;
+  (S.store === 'all' ? S.stores : [S.store]).forEach(st => { plan += +((S.plans[st] || {})[ym]) || 0; });
+  if (!plan) S.rows.forEach(r => { if (r.d.slice(0, 7) === ym && (S.store === 'all' || r.store === S.store)) plan += r.plan; });
+  return plan;
+}
+function planState(T){
+  const ym = S.to.slice(0, 7), days = monthDays(ym);
+  let last = -1; days.forEach((d, i) => { const o = T.get(d); if (o && o.rev > 0) last = i; });
+  if (last < 0) return null;
+  const lastD = days[last], from = addDays(lastD, -55), byW = {}, all = [];
+  T.forEach(o => { if (o.rev > 0 && o.d <= lastD && o.d >= from) { (byW[weekday(o.d)] = byW[weekday(o.d)] || []).push(o.rev); all.push(o.rev); } });
+  const avgAll = mean(all) || 0, avgW = w => byW[w] ? mean(byW[w]) : avgAll;
+  const plan = planFor(ym);
+  let c = 0; const fact = days.map((d, i) => { const o = T.get(d); c += o ? o.rev : 0; return i <= last ? c : null; });
+  const wts = days.map(d => avgW(weekday(d)) || 1), wsum = wts.reduce((a, b) => a + b, 0);
+  let pc = 0; const planCum = wts.map(w => { pc += w; return plan > 0 ? plan * pc / wsum : null; });
+  let fc = fact[last]; const fcast = days.map((d, i) => { if (i < last) return null; if (i === last) return fc; fc += avgW(weekday(d)); return fc; });
+  const total = fact[last], left = days.length - 1 - last, gap = plan - total;
+  return { ym: ym, days: days, last: last, lastD: lastD, plan: plan, fact: fact, planCum: planCum, fcast: fcast, total: total, forecast: fcast[days.length - 1],
+    left: left, gap: gap, need: left > 0 && gap > 0 ? gap / left : null, avgPerDay: avgAll, ahead: plan > 0 ? total - planCum[last] : null };
+}
+function drawPlanChart(el, P){
+  const W = Math.max(280, el.clientWidth || 600), H = 240, m = { l: 54, r: 14, t: 12, b: 28 }, n = P.days.length, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const vals = [].concat(P.fact.filter(v => v != null), P.fcast.filter(v => v != null), P.planCum.filter(v => v != null));
+  const maxV = Math.max(1, ...vals), step = niceStep(maxV / 4), yMax = Math.ceil(maxV / step) * step;
+  const X = i => m.l + (n === 1 ? pw / 2 : i * pw / (n - 1)), Y = v => m.t + ph - v / yMax * ph;
+  let g = '';
+  for (let v = 0; v <= yMax + 1e-9; v += step) g += '<line class="grid-l" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/><text class="ax" x="' + (m.l - 8) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end">' + axisFmt(v) + '</text>';
+  const every = Math.ceil(n / Math.max(2, Math.floor(pw / 56)));
+  P.days.forEach((d, i) => { if (i % every === 0 || i === n - 1) g += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + fmtDM(d) + '</text>'; });
+  const path = (arr, a, b) => { const o = []; for (let i = a; i <= b; i++) if (arr[i] != null) o.push(X(i).toFixed(1) + ',' + Y(arr[i]).toFixed(1)); return 'M' + o.join(' L'); };
+  el.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Нарастающий итог и прогноз плана">' + g +
+    (P.plan > 0 ? '<path class="ln-base" d="' + path(P.planCum, 0, n - 1) + '"/>' : '') +
+    (P.last < n - 1 ? '<path class="ln-fc" d="' + path(P.fcast, P.last, n - 1) + '"/>' : '') +
+    '<path class="ln-cur" d="' + path(P.fact, 0, P.last) + '"/></svg>';
+}
+function renderPlanFlow(T){
+  const P = planState(T);
+  if (!P) { setCard('planFlowCard', ''); return null; }
+  const pct = P.plan > 0 ? P.total / P.plan : null, fp = P.plan > 0 ? P.forecast / P.plan : null;
+  const tiles = [['Факт месяца', fmtMoney(P.total), ''], ['Прогноз на конец месяца', fmtMoney(P.forecast), fp != null ? (fp >= 1 ? 'good' : 'warn') : '']];
+  if (P.plan > 0) {
+    tiles.unshift(['План месяца', fmtMoney(P.plan), '']);
+    tiles.push(['Выполнение плана', fmtPct(pct, 1), pct >= 1 ? 'good' : '']);
+    tiles.push(['Прогноз к плану', fmtPct(fp, 0), fp >= 1 ? 'good' : 'warn']);
+    tiles.push([P.ahead >= 0 ? 'Опережение графика' : 'Отставание от графика', fmtMoney(Math.abs(P.ahead)), P.ahead >= 0 ? 'good' : 'bad']);
+    tiles.push(['До плана осталось', P.gap > 0 ? fmtMoney(P.gap) : 'Выполнен', P.gap > 0 ? '' : 'good']);
+    tiles.push(['Нужно в день (осталось ' + P.left + ' дн.)', P.need != null ? fmtMoney(P.need) : '—', P.need != null && P.need > P.avgPerDay * 1.15 ? 'warn' : '']);
+  }
+  const html = '<h2>Прогноз плана · ' + monthLabel(P.ym) + '</h2><div class="legend">' + (P.plan > 0 ? '<span><i class="b"></i>План нарастающим итогом</span>' : '') + '<span><i></i>Факт</span><span><i class="f"></i>Прогноз</span></div>' +
+    '<div class="chart" id="planChart"></div><div class="dsum">' + tiles.map(x => '<div><small>' + esc(x[0]) + '</small><b class="' + x[2] + '">' + x[1] + '</b></div>').join('') + '</div>' +
+    '<p class="sub">' + (P.plan > 0 ? 'План разложен по дням с учётом дней недели.' : 'План месяца не задан: укажите его во вкладке «Дни», и появится выполнение и график.') +
+    ' Прогноз: факт плюс средняя выручка для каждого дня недели за последние 8 недель. Данные до ' + fmtDMY(P.lastD) + '.</p>';
+  setCard('planFlowCard', html);
+  drawPlanChart($('#planChart'), P);
+  return P;
+}
+
+/* ---- недели ---- */
+function renderWeeks(T){
+  const pd = periodDays(T), wk = new Map();
+  pd.forEach(o => { const k = addDays(o.d, -((weekday(o.d) + 6) % 7)); if (!wk.has(k)) wk.set(k, { k: k, n: 0, rev: 0, traffic: 0, checks: 0, units: 0 }); const w = wk.get(k); w.n++; w.rev += o.rev; w.traffic += o.traffic; w.checks += o.checks; w.units += o.units; });
+  const ws = Array.from(wk.values()).sort((a, b) => a.k < b.k ? -1 : 1);
+  if (ws.length < 2) { setCard('weeksCard', ''); return; }
+  const avg = ws.map(w => w.rev / w.n), mx = Math.max(...avg), mn = Math.min(...avg);
+  const rows = ws.map((w, i) => {
+    const a = avg[i], prev = i > 0 ? avg[i - 1] : null, d = prev ? a / prev - 1 : null, c = dv(w);
+    return '<tr><td>' + fmtDM(w.k) + ' – ' + fmtDM(addDays(w.k, 6)) + (w.n < 7 ? ' <span class="sub2">' + w.n + ' ' + plural(w.n, 'день', 'дня', 'дней') + '</span>' : '') + '</td><td' + heat(a, mn, mx) + '>' + fmtMoney(a) + '</td><td>' + fmtMoney(w.rev) + '</td>' +
+      '<td class="' + (d == null ? '' : d < -0.005 ? 'bad' : d > 0.005 ? 'good' : '') + '">' + fmtDelta(d) + '</td><td>' + (w.traffic ? nf0.format(w.traffic / w.n) : '—') + '</td><td>' + fmtPct(c.conv) + '</td><td>' + (c.atv ? fmtExact(c.atv) : '—') + '</td></tr>';
+  }).join('');
+  const bi = avg.indexOf(mx), wi = avg.indexOf(mn);
+  setCard('weeksCard', '<h2>Недели</h2><div class="tw"><table><thead><tr><th>Неделя</th><th>Выручка в день</th><th>Всего</th><th>Динамика</th><th>Трафик в день</th><th>Конверсия</th><th>Ср. чек</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="sub" style="margin-top:10px">Сильнейшая неделя: ' + fmtDM(ws[bi].k) + ' (' + fmtMoney(mx) + ' в день), слабейшая: ' + fmtDM(ws[wi].k) + ' (' + fmtMoney(mn) + '). Динамика считается по выручке в день, чтобы неполные недели не искажали сравнение.</p>');
+}
+
+/* ---- дни недели ---- */
+function renderWeekdays(T){
+  const pd = periodDays(T);
+  if (pd.length < 7) { setCard('weekdaysCard', ''); return; }
+  const g = {}; pd.forEach(o => { const w = weekday(o.d), x = g[w] = g[w] || { n: 0, rev: 0, traffic: 0, checks: 0, units: 0 }; x.n++; x.rev += o.rev; x.traffic += o.traffic; x.checks += o.checks; x.units += o.units; });
+  const tot = pd.reduce((s, o) => s + o.rev, 0), L = WD_ORDER.filter(w => g[w]).map(w => { const x = g[w], c = dv(x); return { w: w, x: x, avg: x.rev / x.n, tr: x.traffic ? x.traffic / x.n : null, conv: c.conv, atv: c.atv, upt: c.upt, share: x.rev / tot }; });
+  const rng = k => { const v = L.map(r => r[k]).filter(z => z != null); return [Math.min(...v), Math.max(...v)]; };
+  const ra = rng('avg'), rt = rng('tr'), rc = rng('conv'), rv = rng('atv');
+  const rows = L.map(r => '<tr><td>' + WDN[r.w] + ' <span class="sub2">' + r.x.n + ' ' + plural(r.x.n, 'день', 'дня', 'дней') + '</span></td><td' + heat(r.avg, ra[0], ra[1]) + '>' + fmtMoney(r.avg) + '</td><td>' + fmtPct(r.share, 0) + '</td><td' + heat(r.tr, rt[0], rt[1]) + '>' + (r.tr != null ? nf0.format(r.tr) : '—') + '</td><td' + heat(r.conv, rc[0], rc[1]) + '>' + fmtPct(r.conv) + '</td><td' + heat(r.atv, rv[0], rv[1]) + '>' + (r.atv ? fmtExact(r.atv) : '—') + '</td><td>' + (r.upt != null ? nf2.format(r.upt) : '—') + '</td></tr>').join('');
+  const best = L.slice().sort((a, b) => b.avg - a.avg)[0], cv = L.filter(r => r.conv != null).sort((a, b) => a.conv - b.conv)[0];
+  setCard('weekdaysCard', '<h2>Дни недели</h2><div class="tw"><table><thead><tr><th>День</th><th>Выручка в день</th><th>Доля выручки</th><th>Трафик в день</th><th>Конверсия</th><th>Ср. чек</th><th>UPT</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="sub" style="margin-top:10px">Самый сильный по выручке: ' + WDN[best.w] + '.' + (cv && L.length > 1 ? ' Самая низкая конверсия: ' + WDN[cv.w] + ' (' + fmtPct(cv.conv) + '): здесь больше всего потерянных покупателей.' : '') + ' Чем темнее ячейка, тем выше значение в столбце.</p>');
+}
+
+/* ---- акции ---- */
+function renderPromo(T){
+  const pd = periodDays(T), promoDays = pd.filter(o => o.promos.length);
+  if (!promoDays.length) { setCard('promoCard', ''); return; }
+  const from = addDays(S.from, -56), plain = Array.from(T.values()).filter(o => o.rev > 0 && !o.promos.length && o.d >= from && o.d <= S.to);
+  const bw = {}; plain.forEach(o => { (bw[weekday(o.d)] = bw[weekday(o.d)] || []).push(o); });
+  const baseOf = (w, k) => { const a = (bw[w] || []).map(o => o[k]).filter(v => v > 0); return a.length >= 2 ? mean(a) : null; };
+  const names = []; promoDays.forEach(o => o.promos.forEach(p => { if (names.indexOf(p) < 0) names.push(p); }));
+  const sum = a => a.reduce((s, o) => { s.rev += o.rev; s.traffic += o.traffic; s.checks += o.checks; s.units += o.units; return s; }, { rev: 0, traffic: 0, checks: 0, units: 0 });
+  const adj = (ds, k) => { const v = ds.map(o => { const b = baseOf(weekday(o.d), k); return b && o[k] > 0 ? o[k] / b - 1 : null; }).filter(x => x != null); return v.length ? mean(v) : null; };
+  const nb = sum(plain), cb = dv(nb);
+  const cell = d => '<td class="' + (d == null ? '' : d < -0.005 ? 'bad' : d > 0.005 ? 'good' : '') + '">' + fmtDelta(d) + '</td>';
+  const rows = names.map(nm => {
+    const ds = promoDays.filter(o => o.promos.indexOf(nm) >= 0), s = sum(ds), c = dv(s);
+    return '<tr><td>' + esc(nm) + (ds.length < 3 ? ' <span class="sub2">мало дней для вывода</span>' : '') + '</td><td>' + ds.length + '</td><td>' + fmtMoney(s.rev / ds.length) + '</td>' + cell(adj(ds, 'rev')) + cell(adj(ds, 'traffic')) +
+      '<td>' + fmtPct(c.conv) + (c.conv != null && cb.conv != null ? ' <span class="sub2">' + fmtPP(c.conv - cb.conv) + '</span>' : '') + '</td>' +
+      '<td>' + (c.atv ? fmtExact(c.atv) : '—') + (c.atv && cb.atv ? ' <span class="sub2">' + fmtDelta(c.atv / cb.atv - 1) + '</span>' : '') + '</td></tr>';
+  }).join('');
+  setCard('promoCard', '<h2>Эффект акций</h2><div class="tw"><table><thead><tr><th>Акция</th><th>Дней</th><th>Выручка в день</th><th>Выручка к обычным</th><th>Трафик к обычным</th><th>Конверсия</th><th>Ср. чек</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="sub" style="margin-top:10px">Каждый день с акцией сравнивается с днями без акций в тот же день недели (последние 8 недель до конца периода), поэтому сильные выходные не выдаются за эффект акции. Конверсия и средний чек сравниваются с днями без акций в целом.' + (plain.length < 10 ? ' Дней без акций мало, выводы приблизительные.' : '') + '</p>');
+}
+
+/* ---- нагрузка на людей в смене ---- */
+function renderStaffLoad(T){
+  const pd = periodDays(T).filter(o => o.staff > 0);
+  if (pd.length < 3) { setCard('staffCard', ''); return; }
+  const s = pd.reduce((a, o) => { a.rev += o.rev; a.traffic += o.traffic; a.checks += o.checks; a.units += o.units; a.staff += o.staff; return a; }, { rev: 0, traffic: 0, checks: 0, units: 0, staff: 0 });
+  const tiles = [['Выручка на человека в смену', fmtMoney(s.rev / s.staff)], ['Людей в смене в среднем', nf1.format(s.staff / pd.length)]];
+  if (s.traffic) tiles.push(['Посетителей на человека', nf1.format(s.traffic / s.staff)]);
+  if (s.checks) tiles.push(['Чеков на человека', nf1.format(s.checks / s.staff)]);
+  const g = {}; pd.forEach(o => { (g[o.staff] = g[o.staff] || []).push(o); });
+  const keys = Object.keys(g).map(Number).sort((a, b) => a - b);
+  const L = keys.map(k => { const x = g[k], a = x.reduce((q, o) => { q.rev += o.rev; q.traffic += o.traffic; q.checks += o.checks; return q; }, { rev: 0, traffic: 0, checks: 0 }), c = dv(a); return { k: k, n: x.length, avg: a.rev / x.length, rp: a.rev / (x.length * k), tp: a.traffic ? a.traffic / (x.length * k) : null, conv: c.conv, atv: c.atv }; });
+  const rows = L.map(r => '<tr><td>' + r.k + ' ' + plural(r.k, 'человек', 'человека', 'человек') + '</td><td>' + r.n + '</td><td>' + fmtMoney(r.avg) + '</td><td>' + fmtMoney(r.rp) + '</td><td>' + (r.tp != null ? nf1.format(r.tp) : '—') + '</td><td>' + fmtPct(r.conv) + '</td><td>' + (r.atv ? fmtExact(r.atv) : '—') + '</td></tr>').join('');
+  const ok = L.filter(r => r.n >= 3 && r.conv != null);
+  let note = '';
+  if (ok.length >= 2) { const b = ok.slice().sort((a, c) => c.conv - a.conv)[0]; note = ' Лучшая конверсия в дни, когда в смене ' + b.k + ' ' + plural(b.k, 'человек', 'человека', 'человек') + ' (' + fmtPct(b.conv) + '). Это наблюдение по вашим дням, а не доказанная причина: смотрите ещё на трафик и дни недели.'; }
+  setCard('staffCard', '<h2>Нагрузка на людей в смене</h2><div class="dsum">' + tiles.map(x => '<div><small>' + x[0] + '</small><b>' + x[1] + '</b></div>').join('') + '</div>' +
+    '<div class="tw"><table><thead><tr><th>В смене</th><th>Дней</th><th>Выручка в день</th><th>На человека</th><th>Посетителей на человека</th><th>Конверсия</th><th>Ср. чек</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="sub" style="margin-top:10px">Считается по колонке «Люди в смене» (дней с заполненным значением: ' + pd.length + ').' + note + '</p>');
+}
+
+/* ---- аномалии ---- */
+function findAnomalies(T){
+  const all = Array.from(T.values()).filter(o => o.rev > 0), out = [];
+  periodDays(T).forEach(o => {
+    const w = weekday(o.d), lo = addDays(o.d, -56), hi = addDays(o.d, 56);
+    const peers = all.filter(p => p.d !== o.d && weekday(p.d) === w && p.d >= lo && p.d <= hi);
+    if (peers.length < 4) return;
+    const cur = Object.assign({ rev: o.rev, traffic: o.traffic }, dv(o)), pv = peers.map(p => Object.assign({ rev: p.rev, traffic: p.traffic }, dv(p))), hits = [];
+    [['rev', 'выручка'], ['traffic', 'трафик'], ['conv', 'конверсия'], ['atv', 'средний чек']].forEach(m => {
+      const v = cur[m[0]]; if (!(v > 0)) return;
+      const xs = pv.map(p => p[m[0]]).filter(x => x != null && x > 0); if (xs.length < 4) return;
+      const mu = mean(xs), sd = stdev(xs, mu); if (!(sd > 0)) return;
+      const z = (v - mu) / sd, r = v / mu - 1;
+      if (Math.abs(z) >= 2 && Math.abs(r) >= 0.15) hits.push({ lab: m[1], z: z, rel: r });
+    });
+    if (hits.length) { hits.sort((a, b) => Math.abs(b.z) - Math.abs(a.z)); out.push({ o: o, w: w, hits: hits, score: Math.abs(hits[0].z) }); }
+  });
+  return out.sort((a, b) => b.score - a.score);
+}
+function renderAnomalies(T){
+  const pd = periodDays(T);
+  if (pd.length < 7) { setCard('anomCard', ''); return []; }
+  const an = findAnomalies(T), top = an.slice(0, 8);
+  const li = top.map(x => '<li><span class="mk ' + (x.hits[0].rel < 0 ? 'bad' : 'good') + '"></span><span class="tx">' + fmtDM(x.o.d) + ' (' + WDN[x.w] + '): ' + esc(x.hits.map(h => h.lab + ' ' + fmtDelta(h.rel)).join(', ')) + ' к обычным ' + WD_PL[x.w] + '.' +
+    ((x.o.promos.length || x.o.comment) ? '<small>' + esc((x.o.promos.length ? 'Акция: ' + x.o.promos.join(', ') + '. ' : '') + (x.o.comment ? 'Комментарий: ' + x.o.comment : '')) + '</small>' : '') + '</span></li>').join('');
+  setCard('anomCard', '<h2>Необычные дни</h2>' + (li ? '<ul class="list">' + li + '</ul>' : '<p class="empty">Заметных отклонений от обычных дней недели нет.</p>') +
+    '<p class="sub" style="margin-top:10px">День попадает сюда, если показатель отличается от обычного для этого дня недели (±8 недель) минимум на 15% и выходит за привычный разброс. Если рядом есть комментарий или акция, они показаны, чтобы причина была видна сразу.' + (an.length > top.length ? ' Показаны ' + top.length + ' из ' + an.length + '.' : '') + '</p>');
+  return an;
+}
+
+/* ---- мини-отчёт ---- */
+function buildReport(kind){
+  const T = dayTotals(CTX.fn), P = planState(T), k = CTX.total.k, kb = CTX.total.kb, hb = CTX.hasBase, bs = CTX.baseShort;
+  const scope = S.store === 'all' ? (S.stores.length > 1 ? 'все магазины' : (S.stores[0] || '')) : S.store, L = [];
+  const dl = (a, b) => hb && b ? ' (' + bs + ' ' + fmtDelta(a / b - 1) + ')' : '';
+  const planLine = () => { if (P && P.plan > 0 && P.ym === S.to.slice(0, 7)) L.push('План ' + monthLabel(P.ym).toLowerCase() + ': выполнено ' + fmtPct(P.total / P.plan, 0) + ' (' + fmtMoney(P.total) + ' из ' + fmtMoney(P.plan) + '), прогноз ' + fmtPct(P.forecast / P.plan, 0) + (P.need != null ? ', нужно в день ' + fmtMoney(P.need) : '') + '.'); };
+  if (kind === 'day') {
+    const dd = CTX.days[CTX.days.length - 1];
+    if (!dd) return 'Нет данных за выбранный период.';
+    const o = T.get(dd.d) || { rev: 0, traffic: 0, checks: 0, units: 0, staff: 0, promos: [], comment: '' }, c = dv(o);
+    L.push('Итоги дня ' + fmtDMY(dd.d) + ' (' + WDN[weekday(dd.d)] + '), ' + scope);
+    L.push('Выручка: ' + fmtExact(o.rev) + (hb && dd.base > 0 ? ' (' + bs + ' ' + fmtDelta(o.rev / dd.base - 1) + ', база ' + fmtExact(dd.base) + ')' : ''));
+    if (o.traffic) L.push('Трафик: ' + nf0.format(o.traffic));
+    if (o.checks) L.push('Чеков: ' + nf0.format(o.checks));
+    if (c.conv != null) L.push('Конверсия: ' + fmtPct(c.conv));
+    if (c.atv != null) L.push('Средний чек: ' + fmtExact(c.atv));
+    if (c.upt != null) L.push('Штук в чеке: ' + nf2.format(c.upt));
+    if (o.staff) L.push('Людей в смене: ' + nf0.format(o.staff));
+    if (o.promos.length) L.push('Акции: ' + o.promos.join(', '));
+    if (o.comment) L.push('Комментарий: ' + o.comment);
+    if (P && P.plan > 0 && P.lastD === dd.d) { L.push(''); planLine(); }
+    const an = findAnomalies(T).filter(x => x.o.d === dd.d)[0];
+    if (an) L.push('', 'Отклонение от обычного: ' + an.hits.map(h => h.lab + ' ' + fmtDelta(h.rel)).join(', ') + '.');
+    return L.join('\n');
+  }
+  const A = buildAnalysis();
+  L.push('Отчёт за ' + fmtDM(S.from) + ' – ' + fmtDMY(S.to) + ', ' + scope, '');
+  L.push('Выручка: ' + fmtMoney(k.rev) + dl(k.rev, kb.rev));
+  if (P && P.plan > 0 && P.ym === S.to.slice(0, 7)) planLine();
+  if (k.traffic) L.push('Трафик: ' + nf0.format(k.traffic) + dl(k.traffic, kb.traffic));
+  if (k.conv != null) L.push('Конверсия: ' + fmtPct(k.conv) + (hb && kb.conv != null ? ' (' + bs + ' ' + fmtPP(k.conv - kb.conv) + ')' : ''));
+  if (k.atv != null) L.push('Средний чек: ' + fmtExact(k.atv) + dl(k.atv, kb.atv));
+  if (k.upt != null) L.push('Штук в чеке: ' + nf2.format(k.upt) + dl(k.upt, kb.upt));
+  if (A.F.length) { L.push('', 'Что обнаружено:'); A.F.slice(0, 4).forEach(x => L.push('- ' + x.t)); }
+  const an = findAnomalies(T).slice(0, 2);
+  if (an.length) { L.push('', 'Необычные дни:'); an.forEach(x => L.push('- ' + fmtDM(x.o.d) + ': ' + x.hits.map(h => h.lab + ' ' + fmtDelta(h.rel)).join(', ') + (x.o.comment ? ' (' + x.o.comment + ')' : ''))); }
+  if (A.R.length) { L.push('', 'Что сделать:'); A.R.slice(0, 3).forEach(x => L.push('- ' + x.t)); }
+  return L.join('\n');
+}
+function renderReport(){
+  const card = $('#reportCard'); if (!card) return;
+  card.hidden = !S.reportOpen || !CTX || !CTX.rows.length;
+  if (card.hidden) return;
+  card.innerHTML = '<h2>Мини-отчёт</h2><div class="chips" style="margin-bottom:12px"><button class="chip" type="button" data-act="report-kind" data-kind="period" aria-pressed="' + (S.reportKind === 'period') + '">За период</button>' +
+    '<button class="chip" type="button" data-act="report-kind" data-kind="day" aria-pressed="' + (S.reportKind === 'day') + '">Последний день</button></div>' +
+    '<textarea id="reportText" readonly rows="14" aria-label="Текст отчёта" style="min-height:220px"></textarea>' +
+    '<div class="row"><button class="primary" type="button" data-act="copy-report">Скопировать</button><span class="msg" id="reportMsg" style="margin:0">Текст готов для WhatsApp или Telegram.</span></div>';
+  $('#reportText').value = buildReport(S.reportKind);
+}
+function copyReport(){
+  const ta = $('#reportText'), msg = $('#reportMsg'); if (!ta) return;
+  const ok = () => { if (msg) msg.textContent = 'Скопировано.'; }, fb = () => { ta.select(); try { document.execCommand('copy'); ok(); } catch (e) { if (msg) msg.textContent = 'Выделено, нажмите Ctrl+C.'; } };
+  try { navigator.clipboard.writeText(ta.value).then(ok, fb); } catch (e) { fb(); }
+}
+function renderExtras(){
+  const T = dayTotals(CTX.fn);
+  renderPlanFlow(T); renderWeeks(T); renderWeekdays(T); renderPromo(T); renderStaffLoad(T); renderAnomalies(T); renderReport();
+}
+function hideExtras(){ EXTRA_IDS.concat(['reportCard']).forEach(id => { const c = $('#' + id); if (c) c.hidden = true; }); }
 
 /* UI part 4: data view, filters, events, boot */
 function plural(n, a, b, c){ const m = n % 100, d = n % 10; return (m > 10 && m < 15) ? c : d === 1 ? a : (d >= 2 && d <= 4) ? b : c; }
@@ -1909,6 +2172,9 @@ function bind(){
         commit();
         $('#adminMsg').textContent = 'Магазин добавлен. Теперь добавьте в него сотрудников.'; $('#adminMsg').className = 'msg good';
       }
+      else if (a === 'toggle-report') { S.reportOpen = !S.reportOpen; renderReport(); }
+      else if (a === 'report-kind') { S.reportKind = D.kind; renderReport(); }
+      else if (a === 'copy-report') { copyReport(); }
       else if (a === 'reset') { S.confirm = 'reset'; renderReset(); }
       else if (a === 'reset-yes') { S.confirm = null; startEmpty(); }
     }

@@ -2307,7 +2307,7 @@ function uid(){
 }
 function setSync(state, msg){
   const el = $('#syncStat'); if (!el) return;
-  const T = { off: 'Локально: Supabase не подключён', connecting: 'Подключаюсь к Supabase…', ok: 'Supabase: всё сохранено', saving: 'Сохраняю…', error: msg || 'Ошибка синхронизации' };
+  const T = { off: 'Локально: База не подключёна', connecting: 'Подключаюсь к Базе…', ok: 'Данные: всё сохранены', saving: 'Сохраняю…', error: msg || 'Ошибка синхронизации' };
   el.className = 'sync ' + state;
   el.innerHTML = '<i></i><span>' + esc(T[state]) + '</span>';
 }
